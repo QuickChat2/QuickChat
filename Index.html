@@ -1,1 +1,49 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>QuickChat // Retro-Net Node</title>
+    <link href="https://fonts.googleapis.com/css2?family=VT323&family=Share+Tech+Mono&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="scanlines"></div>
+    
+    <div class="container">
+        <header>
+            <h1 class="glitch" data-text="QUICK_CHAT">QUICK_CHAT</h1>
+            <p class="subtitle">// SECURE_NEON_RELAY_v1.0.4</p>
+        </header>
 
+        <div id="landing-screen" class="panel">
+            <div class="terminal-text">
+                <p>> SYSTEM: ONLINE</p>
+                <p>> ENCRYPTION: QUANTUM_CYAN</p>
+                <p>> STATUS: READY FOR LINKAGE</p>
+            </div>
+            <button id="start-btn" class="neon-btn">INITIALIZE CONNECTION</button>
+        </div>
+
+        <div id="searching-screen" class="panel hidden">
+            <div class="radar-loader"></div>
+            <p class="blink">SEARCHING MATRIX FOR PEER...</p>
+            <button id="cancel-search-btn" class="neon-btn danger">ABORT</button>
+        </div>
+
+        <div id="chat-screen" class="panel hidden">
+            <div id="chat-messages" class="chat-box">
+                <div class="system-msg">>> LINK ESTABLISHED WITH UNKNOWN NODE.</div>
+            </div>
+            
+            <div class="chat-controls">
+                <input type="text" id="message-input" placeholder="Transmit data packet..." autocomplete="off">
+                <button id="send-btn" class="neon-btn">SEND</button>
+                <button id="skip-btn" class="neon-btn warning">SKIP</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>
