@@ -10,6 +10,7 @@ const skipBtn = document.getElementById('skip-btn');
 
 const messageInput = document.getElementById('message-input');
 const chatMessages = document.getElementById('chat-messages');
+const nodeCounter = document.getElementById('node-counter');
 
 // P2P / PeerJS Variables
 let peer = null;
@@ -33,6 +34,8 @@ function initPeer(onReady) {
         return;
     }
     
+    nodeCounter.textContent = "NODE STATUS: CONNECTING TO RELAY...";
+
     peer = new Peer({
         config: {
             iceServers: [
@@ -44,6 +47,7 @@ function initPeer(onReady) {
 
     peer.on('open', (id) => {
         myId = id;
+        nodeCounter.textContent = `NODE STATUS: ONLINE (ID ACTIVE)`;
         console.log('My node ID is: ' + id);
         if (onReady) onReady();
     });
@@ -59,21 +63,21 @@ function initPeer(onReady) {
 
     peer.on('error', (err) => {
         console.error('Peer error:', err);
+        nodeCounter.textContent = "NODE STATUS: NETWORK ERROR";
         appendSystemMessage('>> NETWORK ANOMALY DETECTED.');
     });
 }
 
-// Smart Matchmaking: Try to connect to a shared global pool or wait for connection
+// Smart Matchmaking
 function startMatchmaking() {
     isSearching = true;
     switchScreen(searchingScreen);
     chatMessages.innerHTML = '';
     
     initPeer(() => {
+        nodeCounter.textContent = "NODE STATUS: SCANNING MATRIX...";
         appendSystemMessage('>> BROADCASTING TO QUICKCHAT MATRIX...');
         
-        // Strategy: Try connecting to a rolling minute-pool ID
-        // Anyone clicking search within the same 10-second window shares a pool prefix
         const timeBlock = Math.floor(Date.now() / 10000); 
         let partnerAttempt = 0;
         
@@ -81,7 +85,6 @@ function startMatchmaking() {
             if (!isSearching) return;
             
             partnerAttempt++;
-            // Try connecting to a randomized slot in the current time block
             const targetId = `qc-pool-${timeBlock}-${partnerAttempt}`;
             
             if (targetId === myId) {
@@ -97,24 +100,17 @@ function startMatchmaking() {
             });
 
             tempConn.on('error', () => {
-                // If target doesn't exist, keep cycling quickly
                 if (isSearching) {
                     setTimeout(tryNextTarget, 600);
                 }
             });
         }
 
-        // Also register ourselves briefly under a pool name so others can find US
-        try {
-            const hostId = `qc-pool-${timeBlock}-${Math.floor(Math.random() * 10)}`;
-            // If we claim a host slot, incoming connections will trigger peer.on('connection')
-        } catch(e) {}
-
         tryNextTarget();
 
-        // Fallback safety: If matchmaking takes more than 8 seconds, transition to direct host listener mode
         searchTimer = setTimeout(() => {
             if (isSearching) {
+                nodeCounter.textContent = "NODE STATUS: LISTENING FOR PEERS...";
                 appendSystemMessage('>> MATRIX CONGESTED. WAITING FOR INCOMING NODE LINK...');
             }
         }, 8000);
@@ -125,6 +121,7 @@ function startMatchmaking() {
 function setupConnection() {
     isSearching = false;
     clearTimeout(searchTimer);
+    nodeCounter.textContent = "NODE STATUS: SECURE P2P LINKED";
     switchScreen(chatScreen);
     appendSystemMessage('>> SECURE P2P LINK ESTABLISHED WITH PEER NODE.');
 
@@ -133,6 +130,7 @@ function setupConnection() {
     });
 
     conn.on('close', () => {
+        nodeCounter.textContent = "NODE STATUS: PEER DISCONNECTED";
         appendSystemMessage('>> PEER TERMINATED THE CONNECTION.');
         setTimeout(handleSkip, 1500);
     });
@@ -148,7 +146,7 @@ function sendMessage() {
     messageInput.value = '';
 }
 
-// Skip Action: Loops straight back to searching
+// Skip Action
 function handleSkip() {
     if (conn) {
         conn.close();
@@ -165,6 +163,7 @@ startBtn.addEventListener('click', () => {
 cancelSearchBtn.addEventListener('click', () => {
     isSearching = false;
     clearTimeout(searchTimer);
+    nodeCounter.textContent = peer ? "NODE STATUS: ONLINE (ID ACTIVE)" : "NODE STATUS: OFFLINE";
     if (peer) {
         peer.destroy();
         peer = null;

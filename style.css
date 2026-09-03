@@ -63,6 +63,13 @@ h1 {
     text-shadow: 0 0 5px var(--neon-pink);
 }
 
+.node-status {
+    font-size: 0.8rem;
+    color: var(--neon-yellow);
+    text-shadow: 0 0 5px var(--neon-yellow);
+    margin-top: 5px;
+}
+
 .panel {
     width: 100%;
     background: var(--dark-panel);
