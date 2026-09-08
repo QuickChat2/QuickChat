@@ -139,17 +139,20 @@ exitAdminBtn.addEventListener('click', () => {
     switchScreen(landingScreen);
 });
 
-// Load NSFW.js AI Model on Startup
+// Load NSFW.js AI Model on Startup with Detailed Error Logging
 async function loadAiModel() {
     if (nsfwModel) return;
     try {
         aiStatusText.textContent = "AI: LOADING MODEL...";
         await tf.ready();
-        tf.setBackend('webgl').catch(() => tf.setBackend('cpu'));
+        await tf.setBackend('webgl').catch(() => tf.setBackend('cpu'));
+        
+        // Load default MobileNetV2 model configuration via nsfwjs
         nsfwModel = await nsfwjs.load();
+        
         aiStatusText.textContent = "AI: ACTIVE & SHIELDING";
     } catch (err) {
-        console.error("AI Model Load Error:", err);
+        console.error("AI Model Load Error Detail:", err);
         aiStatusText.textContent = "AI: OFFLINE (FALLBACK)";
     }
 }
