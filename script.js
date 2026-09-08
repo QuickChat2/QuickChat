@@ -1,6 +1,6 @@
 const mqttClient = mqtt.connect('wss://broker.emqx.io:8084/mqtt');
-const LOBBY_TOPIC = 'nullcam_matrix_lobby_v3_4';
-const ADMIN_TOPIC = 'nullcam_admin_command_v3_4';
+const LOBBY_TOPIC = 'nullcam_matrix_lobby_v3_5';
+const ADMIN_TOPIC = 'nullcam_admin_command_v3_5';
 
 // DOM Elements
 const landingScreen = document.getElementById('landing-screen');
@@ -8,6 +8,7 @@ const searchingScreen = document.getElementById('searching-screen');
 const chatScreen = document.getElementById('chat-screen');
 const adminScreen = document.getElementById('admin-screen');
 const reportModal = document.getElementById('report-modal');
+const reviewModal = document.getElementById('review-modal');
 
 const startBtn = document.getElementById('start-btn');
 const taAgreeCheckbox = document.getElementById('ta-agree');
@@ -22,7 +23,7 @@ const reportBtn = document.getElementById('report-btn');
 const submitReportBtn = document.getElementById('submit-report-btn');
 const cancelReportBtn = document.getElementById('cancel-report-btn');
 const exitAdminBtn = document.getElementById('exit-admin-btn');
-const unbanBtn = document.getElementById('unban-btn');
+const closeReviewBtn = document.getElementById('close-review-btn');
 
 const messageInput = document.getElementById('message-input');
 const chatMessages = document.getElementById('chat-messages');
@@ -33,6 +34,8 @@ const remoteVideo = document.getElementById('remote-video');
 const reportReason = document.getElementById('report-reason');
 const aiBlurOverlay = document.getElementById('ai-blur-overlay');
 const adminFeedList = document.getElementById('admin-feed-list');
+const adminBansList = document.getElementById('admin-bans-list');
+const reviewModalContent = document.getElementById('review-modal-content');
 
 let localStream = null;
 let peer = null;
@@ -44,6 +47,9 @@ let isSearching = false;
 let isAdmin = false;
 let chatBuffer = [];
 let typingTimeout = null;
+
+// Registry holding ban evidence files for the admin session
+let activeBansRegistry = {};
 
 // AI Model State
 let nsfwModel = null;
@@ -246,12 +252,26 @@ mqttClient.on('message', (topic, message) => {
             appendAdminFeedCard(data);
         }
 
+        // Track ban records in registry if sent on admin topic
+        if (isAdmin && topic === ADMIN_TOPIC && data.type === 'ban_command') {
+            activeBansRegistry[data.targetId] = data;
+            renderAdminBansList();
+        }
+
+        // Remove from registry if unbanned
+        if (isAdmin && topic === ADMIN_TOPIC && data.type === 'unban_command') {
+            delete activeBansRegistry[data.targetId];
+            renderAdminBansList();
+        }
+
         // Handle incoming ban commands broadcasted across the network
         if (topic === ADMIN_TOPIC && data.type === 'ban_command' && data.targetId === myId) {
             localStorage.setItem('nullcam_ban', JSON.stringify({
                 hours: data.hours,
                 reason: data.reason,
-                expiresAt: new Date().getTime() + (data.hours * 3600 * 1000)
+                expiresAt: new Date().getTime() + (data.hours * 3600 * 1000),
+                snapshot: data.snapshot,
+                chatLog: data.chatLog
             }));
             alert(`SECURITY NOTICE: You have been banned from NullCam for ${data.hours} hours.\nReason: ${data.reason}`);
             window.location.reload();
@@ -354,7 +374,7 @@ submitReportBtn.addEventListener('click', () => {
         timestamp: new Date().toISOString()
     };
 
-mqttClient.publish(ADMIN_TOPIC, JSON.stringify(reportEvidence));
+    mqttClient.publish(ADMIN_TOPIC, JSON.stringify(reportEvidence));
     alert("VIOLATION REPORTED. Evidence bundle captured and transmitted to admin monitoring station.");
     handleSkip();
 });
@@ -370,48 +390,106 @@ function appendAdminFeedCard(report) {
     
     let chatLogHtml = report.chatLog ? report.chatLog.join('<br>') : 'No chat history';
     
+    // Store in a temporary lookup so ban card can access snapshot/chatlog
+    card.dataset.reportPayload = JSON.stringify(report);
+
     card.innerHTML = `
         <div><strong>TIME:</strong> ${new Date(report.timestamp).toLocaleTimeString()}</div>
         <div><strong>TARGET ID:</strong> ${report.reportedId}</div>
         <div><strong>REASON:</strong> <span style="color:var(--neon-yellow);">${report.reason}</span></div>
         <div><strong>RECENT CHAT:</strong><br><div style="background:#111; padding:4px; font-size:0.75rem; color:#a5f3fc;">${chatLogHtml}</div></div>
         <div><strong>EVIDENCE SNAPSHOT:</strong><br><img src="${report.snapshot}" alt="Evidence Frame"></div>
-        <button class="neon-btn danger" onclick="issueBanCommand('${report.reportedId}')" style="margin-top: 5px;">BAN USER</button>
+        <button class="neon-btn danger" onclick="issueBanCommand(this)" style="margin-top: 5px;">BAN USER</button>
     `;
     adminFeedList.prepend(card);
 }
 
-window.issueBanCommand = function(targetId) {
+window.issueBanCommand = function(btnEl) {
+    const card = btnEl.closest('.admin-card');
+    const report = JSON.parse(card.dataset.reportPayload);
+
     const hoursInput = prompt("Enter ban duration in hours (e.g., 24):", "24");
     const hours = parseInt(hoursInput);
     if (!hours || isNaN(hours)) return;
 
-    const reasonInput = prompt("Enter ban reason:", "Terms & Conditions / T&A Violation");
+    const reasonInput = prompt("Enter ban reason:", report.reason);
 
     const banCommand = {
         type: 'ban_command',
-        targetId: targetId,
+        targetId: report.reportedId,
         hours: hours,
-        reason: reasonInput || "Violation of platform rules"
+        reason: reasonInput || report.reason,
+        snapshot: report.snapshot,
+        chatLog: report.chatLog,
+        timestamp: new Date().toISOString()
     };
 
     mqttClient.publish(ADMIN_TOPIC, JSON.stringify(banCommand));
-    alert(`Ban command issued for user ${targetId} (${hours} hours).`);
+    alert(`Ban command issued for user ${report.reportedId} (${hours} hours). Added to Active Bans Registry.`);
+};
+
+// Render Banned Users Registry List
+function renderAdminBansList() {
+    const keys = Object.keys(activeBansRegistry);
+    if (keys.length === 0) {
+        adminBansList.innerHTML = '<div class="system-msg">No active user bans recorded.</div>';
+        return;
+    }
+
+    adminBansList.innerHTML = '';
+    keys.forEach((targetId) => {
+        const ban = activeBansRegistry[targetId];
+        const item = document.createElement('div');
+        item.className = 'admin-card';
+        item.style.borderColor = 'var(--neon-pink)';
+        item.innerHTML = `
+            <div><strong>NODE ID:</strong> ${targetId.slice(0, 10)}...</div>
+            <div><strong>REASON:</strong> <span style="color:var(--neon-yellow);">${ban.reason}</span></div>
+            <div style="display: flex; gap: 8px; margin-top: 8px;">
+                <button class="neon-btn" onclick="reviewBanFile('${targetId}')" style="flex:1; font-size: 0.75rem;">REVIEW FILE</button>
+                <button class="neon-btn warning" onclick="executeUnban('${targetId}')" style="flex:1; font-size: 0.75rem;">UNBAN</button>
+            </div>
+        `;
+        adminBansList.appendChild(item);
+    });
 }
 
-// Admin Unban Button Handler
-unbanBtn.addEventListener('click', () => {
-    const targetId = prompt("Enter the exact Peer ID of the user to unban:");
-    if (!targetId || !targetId.trim()) return;
+// Review Ban File Modal
+window.reviewBanFile = function(targetId) {
+    const ban = activeBansRegistry[targetId];
+    if (!ban) return;
 
+    let chatHtml = ban.chatLog && ban.chatLog.length > 0 ? ban.chatLog.join('<br>') : 'No chat data logged.';
+    let snapshotHtml = ban.snapshot ? `<img src="${ban.snapshot}" style="max-width:100%; border:1px solid var(--neon-cyan); margin-top:5px;" alt="Snapshot">` : 'No snapshot available.';
+
+    reviewModalContent.innerHTML = `
+        <p><strong>TARGET ID:</strong> ${ban.targetId}</p>
+        <p><strong>DURATION:</strong> ${ban.hours} Hours</p>
+        <p><strong>REASON:</strong> <span style="color:var(--neon-yellow);">${ban.reason}</span></p>
+        <p style="margin-top:8px;"><strong>LOGGED CHAT BUFFER:</strong></p>
+        <div style="background:#111; padding:6px; font-size:0.75rem; color:#a5f3fc; border:1px solid #333;">${chatHtml}</div>
+        <p style="margin-top:8px;"><strong>EVIDENCE SNAPSHOT:</strong></p>
+        ${snapshotHtml}
+    `;
+    reviewModal.classList.remove('hidden');
+};
+
+closeReviewBtn.addEventListener('click', () => {
+    reviewModal.classList.add('hidden');
+});
+
+// Execute Instant Unban Broadcast
+window.executeUnban = function(targetId) {
     const unbanCommand = {
         type: 'unban_command',
-        targetId: targetId.trim()
+        targetId: targetId
     };
 
     mqttClient.publish(ADMIN_TOPIC, JSON.stringify(unbanCommand));
-    alert(`Unban command broadcasted for user ID: ${targetId.trim()}`);
-});
+    delete activeBansRegistry[targetId];
+    renderAdminBansList();
+    alert(`Unban command broadcasted successfully for node: ${targetId}`);
+};
 
 function cleanDisconnect() {
     isSearching = false;

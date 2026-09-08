@@ -13,7 +13,7 @@
     <div class="container">
         <header>
             <h1 class="glitch" data-text="NULL_CAM">NULL_CAM</h1>
-            <p class="subtitle" id="admin-trigger" title="Secret Portal">// SECURE_NEON_RELAY_v3.4.0 // FULLY MODERATED</p>
+            <p class="subtitle" id="admin-trigger" title="Secret Portal">// SECURE_NEON_RELAY_v3.5.0 // FULLY MODERATED</p>
             <p class="node-status" id="node-counter">NODE STATUS: OFFLINE</p>
         </header>
 
@@ -84,10 +84,13 @@
             <div id="admin-feed-list" class="admin-feed-container">
                 <div class="system-msg">No active flags or reports in queue. Monitoring matrix...</div>
             </div>
-            <div style="width: 100%; display: flex; gap: 10px; margin-top: 10px;">
-                <button id="unban-btn" class="neon-btn warning">UNBAN USER BY ID</button>
-                <button id="exit-admin-btn" class="neon-btn">EXIT ADMIN MODE</button>
+
+            <h3 style="margin-top: 15px; color: var(--neon-yellow);">// ACTIVE BANNED NODES REGISTRY</h3>
+            <div id="admin-bans-list" class="admin-feed-container" style="max-height: 180px;">
+                <div class="system-msg">No active user bans recorded.</div>
             </div>
+
+            <button id="exit-admin-btn" class="neon-btn" style="margin-top: 10px;">EXIT ADMIN MODE</button>
         </div>
     </div>
 
@@ -106,6 +109,17 @@
                 <button id="submit-report-btn" class="neon-btn danger">SUBMIT EVIDENCE</button>
                 <button id="cancel-report-btn" class="neon-btn">CANCEL</button>
             </div>
+        </div>
+    </div>
+
+    <!-- Review Ban Evidence Audit Modal -->
+    <div id="review-modal" class="modal hidden">
+        <div class="modal-content" style="max-width: 450px;">
+            <h3 style="color: var(--neon-yellow);">BAN AUDIT FILE REVIEW</h3>
+            <div id="review-modal-content" style="font-size: 0.85rem; margin: 10px 0; max-height: 280px; overflow-y: auto;">
+                <!-- Populated dynamically -->
+            </div>
+            <button id="close-review-btn" class="neon-btn" style="width: 100%; margin-top: 5px;">CLOSE REVIEW</button>
         </div>
     </div>
 
