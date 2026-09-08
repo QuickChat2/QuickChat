@@ -144,6 +144,7 @@ async function loadAiModel() {
     if (nsfwModel) return;
     try {
         aiStatusText.textContent = "AI: LOADING MODEL...";
+        await tf.ready();
         tf.setBackend('webgl').catch(() => tf.setBackend('cpu'));
         nsfwModel = await nsfwjs.load();
         aiStatusText.textContent = "AI: ACTIVE & SHIELDING";
@@ -172,7 +173,7 @@ function startAiScanner() {
     if (aiInterval) clearInterval(aiInterval);
 
     aiInterval = setInterval(async () => {
-        if (!nsfwModel || !localVideo || localVideo.paused || localVideo.ended) return;
+        if (!nsfwModel || !localVideo || localVideo.paused || localVideo.ended || localVideo.readyState < 2) return;
 
         try {
             const predictions = await nsfwModel.classify(localVideo, 3);
