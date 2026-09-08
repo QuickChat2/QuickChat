@@ -1,17 +1,6 @@
-// Firebase Config - Replace with your project details from firebase.google.com
-const firebaseConfig = {
-    apiKey: "YOUR_API_KEY",
-    authDomain: "your-app.firebaseapp.com",
-    databaseURL: "https://your-app-default-rtdb.firebaseio.com",
-    projectId: "your-app",
-    storageBucket: "your-app.appspot.com",
-    messagingSenderId: "1234567890",
-    appId: "1:1234567890:web:abcdef"
-};
-
-firebase.initializeApp(firebaseConfig);
-const db = firebase.database();
-const queueRef = db.ref('matchmaking_queue');
+// Connect to Public MQTT WebSockets Broker for Zero-Account Matchmaking
+const mqttClient = mqtt.connect('wss://broker.emqx.io:8084/mqtt');
+const LOBBY_TOPIC = 'quickchat_retro_neon_lobby_v1';
 
 // DOM Elements
 const landingScreen = document.getElementById('landing-screen');
@@ -30,13 +19,13 @@ const nodeCounter = document.getElementById('node-counter');
 const localVideo = document.getElementById('local-video');
 const remoteVideo = document.getElementById('remote-video');
 
-// WebRTC State
+// Engine State Variables
 let localStream = null;
 let peer = null;
-let conn = null;      // Data Connection
-let mediaCall = null; // Media Call
+let conn = null;      // Text Data
+let mediaCall = null; // A/V Data
 let myId = null;
-let queueKey = null;
+let isSearching = false;
 
 function switchScreen(screen) {
     landingScreen.classList.add('hidden');
@@ -45,7 +34,7 @@ function switchScreen(screen) {
     screen.classList.remove('hidden');
 }
 
-// Request Media Stream (iPad Camera & Audio)
+// 1. Get User Hardware
 async function startWebcam() {
     if (localStream) return true;
     try {
@@ -53,18 +42,18 @@ async function startWebcam() {
         localVideo.srcObject = localStream;
         return true;
     } catch (err) {
-        console.error("Camera access failed:", err);
-        alert("Camera and Microphone access are required for QuickChat.");
+        console.error("Hardware access denied:", err);
+        alert("CRITICAL ERROR: Camera and Microphone access required to access the matrix.");
         return false;
     }
 }
 
-// Initialize Peer Node
+// 2. Initialize P2P Node
 function initPeer() {
     return new Promise((resolve) => {
         if (peer && !peer.destroyed) return resolve();
 
-        nodeCounter.textContent = "NODE STATUS: CONNECTING TO MATRIX...";
+        nodeCounter.textContent = "STATUS: GENERATING ANON ID...";
         peer = new Peer({
             config: {
                 iceServers: [
@@ -76,17 +65,17 @@ function initPeer() {
 
         peer.on('open', (id) => {
             myId = id;
-            nodeCounter.textContent = `NODE ONLINE // ID: ${id.slice(0, 6)}...`;
+            nodeCounter.textContent = `ONLINE // ID: ${id.slice(0, 6)}`;
             resolve();
         });
 
-        // Handle incoming data channel
+        // Listen for Incoming Text Connection
         peer.on('connection', (incomingConn) => {
             conn = incomingConn;
             setupDataHandlers();
         });
 
-        // Handle incoming video call
+        // Listen for Incoming Video Connection
         peer.on('call', (call) => {
             mediaCall = call;
             call.answer(localStream);
@@ -96,16 +85,42 @@ function initPeer() {
         });
 
         peer.on('error', (err) => {
-            console.error(err);
+            console.error("PeerJS Error:", err);
             cleanDisconnect();
         });
     });
 }
 
-// Firebase Matchmaking Broker
+// 3. Broker Matchmaking Logic (No Database Required)
+mqttClient.on('connect', () => {
+    mqttClient.subscribe(LOBBY_TOPIC);
+    console.log("Connected to public matchmaking ghost node.");
+});
+
+mqttClient.on('message', (topic, message) => {
+    if (!isSearching) return; // Ignore if we aren't looking
+
+    try {
+        const data = JSON.parse(message.toString());
+        
+        // If we see someone waiting, and it's not us
+        if (data.status === 'waiting' && data.id !== myId) {
+            isSearching = false; // Stop looking
+            
+            // Announce we claimed them so others don't try
+            mqttClient.publish(LOBBY_TOPIC, JSON.stringify({ id: data.id, status: 'claimed' }));
+            
+            connectToPeer(data.id);
+        }
+    } catch (e) {
+        console.error("Garbage data on broker:", e);
+    }
+});
+
 async function joinQueue() {
     switchScreen(searchingScreen);
     chatMessages.innerHTML = '';
+    nodeCounter.textContent = "STATUS: REQUESTING HARDWARE...";
 
     const hasMedia = await startWebcam();
     if (!hasMedia) {
@@ -114,47 +129,21 @@ async function joinQueue() {
     }
 
     await initPeer();
-
-    // Check if another peer is waiting in the queue
-    queueRef.once('value').then((snapshot) => {
-        const queue = snapshot.val();
-        let targetPeerId = null;
-
-        if (queue) {
-            const keys = Object.keys(queue);
-            for (let key of keys) {
-                if (queue[key] !== myId) {
-                    targetPeerId = queue[key];
-                    // Remove matched peer from queue
-                    db.ref(`matchmaking_queue/${key}`).remove();
-                    break;
-                }
-            }
-        }
-
-        if (targetPeerId) {
-            // We found a waiting peer -> Initiate connection
-            connectToPeer(targetPeerId);
-        } else {
-            // Queue is empty -> Push our ID and wait
-            const newQueueItem = queueRef.push(myId);
-            queueKey = newQueueItem.key;
-            newQueueItem.onDisconnect().remove(); // Clean up if window closes
-
-            // Listen for direct P2P incoming connection
-            nodeCounter.textContent = "SEARCHING FOR PEER...";
-        }
-    });
+    
+    isSearching = true;
+    nodeCounter.textContent = "STATUS: BROADCASTING TO MATRIX...";
+    
+    // Broadcast our presence to the public topic
+    mqttClient.publish(LOBBY_TOPIC, JSON.stringify({ id: myId, status: 'waiting' }));
 }
 
+// 4. P2P Connection Protocol
 function connectToPeer(targetId) {
-    nodeCounter.textContent = "LINKING TO PEER...";
+    nodeCounter.textContent = "STATUS: EXECUTING P2P HANDSHAKE...";
     
-    // Connect Data Channel
     conn = peer.connect(targetId, { reliable: true });
     setupDataHandlers();
 
-    // Initiate Video Stream Call
     mediaCall = peer.call(targetId, localStream);
     mediaCall.on('stream', (remoteStream) => {
         remoteVideo.srcObject = remoteStream;
@@ -162,43 +151,36 @@ function connectToPeer(targetId) {
 }
 
 function setupDataHandlers() {
-    removeFromQueue();
+    isSearching = false;
     switchScreen(chatScreen);
-    nodeCounter.textContent = "NODE LINKED // SECURE P2P";
-    appendSystemMessage('>> P2P VIDEO & DATA LINK ESTABLISHED.');
+    nodeCounter.textContent = "STATUS: SECURE P2P ESTABLISHED";
+    appendSystemMessage('>> QUANTUM TUNNEL LINKED. NODE ANONYMIZED.');
 
     conn.on('data', (data) => {
         appendMessage(`STRANGER: ${data}`, 'msg-peer');
     });
 
     conn.on('close', () => {
-        appendSystemMessage('>> PEER TERMINATED LINK.');
-        nodeCounter.textContent = "NODE DISCONNECTED";
+        appendSystemMessage('>> STRANGER SEVERED THE CONNECTION.');
+        nodeCounter.textContent = "STATUS: NODE ORPHANED";
     });
 }
 
-function removeFromQueue() {
-    if (queueKey) {
-        db.ref(`matchmaking_queue/${queueKey}`).remove();
-        queueKey = null;
-    }
-}
-
+// 5. Cleanup & Skipping
 function cleanDisconnect() {
-    removeFromQueue();
-    if (conn) conn.close();
-    if (mediaCall) mediaCall.close();
-    conn = null;
-    mediaCall = null;
+    isSearching = false;
+    if (conn) { conn.close(); conn = null; }
+    if (mediaCall) { mediaCall.close(); mediaCall = null; }
     remoteVideo.srcObject = null;
 }
 
 function handleSkip() {
     cleanDisconnect();
-    joinQueue(); // Immediate loop into queue
+    appendSystemMessage('>> SEVERING LINK. RE-ENTERING MATRIX...');
+    joinQueue(); 
 }
 
-// UI Triggers
+// UI Event Listeners
 startBtn.addEventListener('click', joinQueue);
 skipBtn.addEventListener('click', handleSkip);
 cancelSearchBtn.addEventListener('click', () => {
@@ -236,5 +218,5 @@ function appendSystemMessage(text) {
     chatMessages.scrollTop = chatMessages.scrollHeight;
 }
 
-// Safari / Mobile Lifecycle cleanup
+// Failsafe cleanup
 window.addEventListener('beforeunload', cleanDisconnect);
