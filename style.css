@@ -16,19 +16,18 @@
 
 body {
     background-color: var(--bg-color);
-    background-image: 
-        radial-gradient(circle at 50% 50%, #1a0b2e 0%, #05050a 100%);
+    background-image: radial-gradient(circle at 50% 50%, #1a0b2e 0%, #05050a 100%);
     color: var(--neon-cyan);
     font-family: 'Share Tech Mono', monospace;
     min-height: 100vh;
     display: flex;
     justify-content: center;
-    align-items: flex-start; /* Better for iPad scrolling */
-    padding-top: 20px;
+    align-items: flex-start;
+    padding: 15px 10px;
     overflow-x: hidden;
 }
 
-/* Sci-Fi CRT Scanlines Effect */
+/* CRT Scanlines */
 .scanlines {
     position: fixed;
     top: 0; left: 0; width: 100%; height: 100%;
@@ -41,8 +40,7 @@ body {
 
 .container {
     width: 100%;
-    max-width: 800px; /* Wider for iPad */
-    padding: 15px;
+    max-width: 750px;
     display: flex;
     flex-direction: column;
     align-items: center;
@@ -51,46 +49,45 @@ body {
 
 header {
     text-align: center;
-    margin-bottom: 20px;
+    margin-bottom: 15px;
 }
 
 h1 {
     font-family: 'VT323', monospace;
-    font-size: 4rem;
-    letter-spacing: 4px;
+    font-size: 3.2rem;
+    letter-spacing: 3px;
     color: #fff;
-    text-shadow: 0 0 10px var(--neon-cyan), 0 0 20px var(--neon-cyan), 0 0 40px var(--neon-cyan);
-    margin-bottom: 5px;
+    text-shadow: 0 0 10px var(--neon-cyan), 0 0 20px var(--neon-cyan);
 }
 
 .subtitle {
-    font-size: 1rem;
+    font-size: 0.85rem;
     color: var(--neon-magenta);
-    text-shadow: 0 0 8px var(--neon-magenta);
+    text-shadow: 0 0 6px var(--neon-magenta);
 }
 
 .node-status {
-    font-size: 0.9rem;
+    font-size: 0.8rem;
     color: var(--neon-yellow);
-    text-shadow: 0 0 5px var(--neon-yellow);
-    margin-top: 8px;
-    padding: 4px 8px;
+    text-shadow: 0 0 4px var(--neon-yellow);
+    margin-top: 5px;
+    padding: 3px 6px;
     border: 1px dashed var(--neon-yellow);
     display: inline-block;
 }
 
 .panel {
     width: 100%;
-    background: rgba(0, 0, 0, 0.6);
+    background: rgba(0, 0, 0, 0.7);
     backdrop-filter: blur(5px);
     border: 2px solid var(--neon-cyan);
     box-shadow: var(--border-glow);
-    padding: 25px;
-    border-radius: 8px;
+    padding: 15px;
+    border-radius: 6px;
     display: flex;
     flex-direction: column;
     align-items: center;
-    gap: 20px;
+    gap: 12px;
 }
 
 .hidden {
@@ -99,24 +96,22 @@ h1 {
 
 .terminal-text {
     width: 100%;
-    font-size: 1.1rem;
-    line-height: 1.6;
+    font-size: 0.95rem;
+    line-height: 1.5;
     color: #a5f3fc;
     border-left: 3px solid var(--neon-magenta);
-    padding-left: 15px;
-    margin-bottom: 10px;
+    padding-left: 10px;
 }
 
-/* Video Layout Constraints */
+/* Video Layout */
 .video-grid {
     width: 100%;
     display: grid;
     grid-template-columns: 1fr 1fr;
-    gap: 15px;
-    margin-bottom: 15px;
+    gap: 10px;
 }
 
-@media (max-width: 600px) {
+@media (max-width: 550px) {
     .video-grid {
         grid-template-columns: 1fr;
     }
@@ -129,26 +124,23 @@ h1 {
     background: #000;
     border: 2px solid var(--neon-cyan);
     border-radius: 4px;
-    box-shadow: inset 0 0 20px rgba(0, 243, 255, 0.2), 0 0 10px rgba(0, 243, 255, 0.2);
     overflow: hidden;
 }
 
 .remote-wrapper {
     border-color: var(--neon-magenta);
-    box-shadow: inset 0 0 20px rgba(255, 0, 234, 0.2), 0 0 10px rgba(255, 0, 234, 0.2);
 }
 
 .video-label {
     position: absolute;
-    top: 8px;
-    left: 8px;
-    font-size: 0.8rem;
+    top: 5px;
+    left: 5px;
+    font-size: 0.7rem;
     background: rgba(0, 0, 0, 0.8);
-    padding: 4px 8px;
+    padding: 2px 6px;
     color: var(--neon-cyan);
     border: 1px solid var(--neon-cyan);
     z-index: 2;
-    text-transform: uppercase;
 }
 
 .remote-wrapper .video-label {
@@ -160,97 +152,55 @@ video {
     width: 100%;
     height: 100%;
     object-fit: cover;
-    filter: contrast(1.1) saturate(1.2); /* Slight visual punch for sci-fi feel */
 }
 
 #local-video {
-    transform: scaleX(-1); /* Mirror camera */
+    transform: scaleX(-1);
 }
 
-/* Interactive Neon Buttons */
-.neon-btn {
-    background: transparent;
-    border: 2px solid var(--neon-cyan);
-    color: var(--neon-cyan);
-    padding: 15px 30px;
-    font-family: 'Share Tech Mono', monospace;
-    font-size: 1.2rem;
-    font-weight: bold;
-    cursor: pointer;
-    text-shadow: 0 0 8px var(--neon-cyan);
-    box-shadow: inset 0 0 15px rgba(0, 243, 255, 0.2), 0 0 10px rgba(0, 243, 255, 0.3);
-    transition: all 0.2s ease-in-out;
+/* Typing Indicator */
+.typing-indicator {
     width: 100%;
-    text-transform: uppercase;
-    letter-spacing: 2px;
-}
-
-.neon-btn:hover, .neon-btn:active {
-    background: var(--neon-cyan);
-    color: var(--bg-color);
-    box-shadow: 0 0 25px var(--neon-cyan);
-    text-shadow: none;
-}
-
-.neon-btn.danger {
-    border-color: var(--neon-magenta);
+    font-size: 0.8rem;
     color: var(--neon-magenta);
-    text-shadow: 0 0 8px var(--neon-magenta);
-    box-shadow: inset 0 0 15px rgba(255, 0, 234, 0.2), 0 0 10px rgba(255, 0, 234, 0.3);
-}
-.neon-btn.danger:hover {
-    background: var(--neon-magenta);
-    color: var(--bg-color);
-    box-shadow: 0 0 25px var(--neon-magenta);
+    text-shadow: 0 0 4px var(--neon-magenta);
+    height: 18px;
+    animation: pulse 1s infinite;
 }
 
-.neon-btn.warning {
-    border-color: var(--neon-yellow);
-    color: var(--neon-yellow);
-    text-shadow: 0 0 8px var(--neon-yellow);
-    box-shadow: inset 0 0 15px rgba(243, 255, 0, 0.2), 0 0 10px rgba(243, 255, 0, 0.3);
-}
-.neon-btn.warning:hover {
-    background: var(--neon-yellow);
-    color: var(--bg-color);
-    box-shadow: 0 0 25px var(--neon-yellow);
-}
-
-/* Chat Output Box */
+/* Chat Controls & Box */
 .chat-box {
     width: 100%;
-    height: 200px;
-    background: rgba(0,0,0,0.8);
+    height: 150px;
+    background: rgba(0,0,0,0.85);
     border: 1px dashed var(--neon-cyan);
-    padding: 15px;
+    padding: 10px;
     overflow-y: auto;
     display: flex;
     flex-direction: column;
-    gap: 10px;
+    gap: 6px;
 }
 
 .system-msg {
     color: var(--neon-yellow);
     font-style: italic;
-    font-size: 0.9rem;
-    border-bottom: 1px solid rgba(243, 255, 0, 0.2);
-    padding-bottom: 5px;
+    font-size: 0.8rem;
 }
 
 .msg-peer {
     color: var(--neon-magenta);
-    text-shadow: 0 0 5px var(--neon-magenta);
+    text-shadow: 0 0 3px var(--neon-magenta);
 }
 
 .msg-self {
     color: var(--neon-lime);
-    text-shadow: 0 0 5px var(--neon-lime);
+    text-shadow: 0 0 3px var(--neon-lime);
 }
 
 .chat-controls {
     width: 100%;
     display: flex;
-    gap: 10px;
+    gap: 8px;
 }
 
 #message-input {
@@ -258,23 +208,68 @@ video {
     background: rgba(0,0,0,0.9);
     border: 2px solid var(--neon-cyan);
     color: #fff;
-    padding: 12px;
+    padding: 10px;
     font-family: 'Share Tech Mono', monospace;
-    font-size: 1.1rem;
+    font-size: 1rem;
+    border-radius: 2px;
 }
 #message-input:focus {
     outline: none;
-    box-shadow: 0 0 15px var(--neon-cyan);
+    box-shadow: 0 0 10px var(--neon-cyan);
 }
 
-/* Radar Animation */
+/* Buttons */
+.neon-btn {
+    background: transparent;
+    border: 2px solid var(--neon-cyan);
+    color: var(--neon-cyan);
+    padding: 10px 20px;
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 1rem;
+    font-weight: bold;
+    cursor: pointer;
+    text-shadow: 0 0 6px var(--neon-cyan);
+    box-shadow: inset 0 0 10px rgba(0, 243, 255, 0.2);
+    transition: all 0.15s ease-in-out;
+    width: 100%;
+    text-transform: uppercase;
+}
+
+.neon-btn:hover, .neon-btn:active {
+    background: var(--neon-cyan);
+    color: var(--bg-color);
+    box-shadow: 0 0 20px var(--neon-cyan);
+}
+
+.neon-btn.danger {
+    border-color: var(--neon-magenta);
+    color: var(--neon-magenta);
+    text-shadow: 0 0 6px var(--neon-magenta);
+}
+.neon-btn.danger:hover {
+    background: var(--neon-magenta);
+    color: var(--bg-color);
+    box-shadow: 0 0 20px var(--neon-magenta);
+}
+
+.neon-btn.warning {
+    border-color: var(--neon-yellow);
+    color: var(--neon-yellow);
+    text-shadow: 0 0 6px var(--neon-yellow);
+}
+.neon-btn.warning:hover {
+    background: var(--neon-yellow);
+    color: var(--bg-color);
+    box-shadow: 0 0 20px var(--neon-yellow);
+}
+
+/* Loader */
 .radar-loader {
-    width: 70px; height: 70px;
+    width: 50px; height: 50px;
     border: 3px solid rgba(0, 243, 255, 0.1);
     border-top: 3px solid var(--neon-cyan);
     border-radius: 50%;
     animation: spin 1s linear infinite;
-    box-shadow: 0 0 20px rgba(0, 243, 255, 0.4);
 }
 
 @keyframes spin {
@@ -283,12 +278,10 @@ video {
 }
 
 .blink {
-    animation: pulse 1.5s infinite;
-    font-size: 1.2rem;
-    letter-spacing: 2px;
+    animation: pulse 1.2s infinite;
 }
 
 @keyframes pulse {
     0%, 100% { opacity: 1; }
-    50% { opacity: 0.4; }
+    50% { opacity: 0.3; }
 }
