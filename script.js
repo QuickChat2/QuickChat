@@ -1,18 +1,15 @@
 const mqttClient = mqtt.connect('wss://broker.emqx.io:8084/mqtt');
-const LOBBY_TOPIC = 'nullcam_matrix_lobby_v3';
-const ADMIN_TOPIC = 'nullcam_admin_command_v3';
+const LOBBY_TOPIC = 'nullcam_matrix_lobby_v3_1';
+const ADMIN_TOPIC = 'nullcam_admin_command_v3_1';
 
 // DOM Elements
 const landingScreen = document.getElementById('landing-screen');
 const searchingScreen = document.getElementById('searching-screen');
 const chatScreen = document.getElementById('chat-screen');
-const adminScreen = document.getElementById('admin-screen');
 const reportModal = document.getElementById('report-modal');
 
 const startBtn = document.getElementById('start-btn');
 const taAgreeCheckbox = document.getElementById('ta-agree');
-const adminLoginBtn = document.getElementById('admin-login-btn');
-const exitAdminBtn = document.getElementById('exit-admin-btn');
 
 const cancelSearchBtn = document.getElementById('cancel-search-btn');
 const sendBtn = document.getElementById('send-btn');
@@ -25,36 +22,19 @@ const messageInput = document.getElementById('message-input');
 const chatMessages = document.getElementById('chat-messages');
 const nodeCounter = document.getElementById('node-counter');
 const typingIndicator = document.getElementById('typing-indicator');
-const aiBlurOverlay = document.getElementById('ai-blur-overlay');
 const localVideo = document.getElementById('local-video');
 const remoteVideo = document.getElementById('remote-video');
 const reportReason = document.getElementById('report-reason');
-const adminFeedList = document.getElementById('admin-feed-list');
 
 let localStream = null;
 let peer = null;
 let conn = null;
 let mediaCall = null;
 let myId = null;
+let targetPeerId = null;
 let isSearching = false;
-let isAdmin = false;
 let chatBuffer = [];
-
-// Check local storage for active bans
-function checkBanStatus() {
-    const banData = localStorage.getItem('nullcam_ban');
-    if (banData) {
-        const ban = JSON.parse(banData);
-        if (new Date().getTime() < ban.expiresAt) {
-            alert(`ACCESS DENIED: You are banned from NullCam for ${ban.hours} hours.\nReason: ${ban.reason}`);
-            startBtn.disabled = true;
-            taAgreeCheckbox.disabled = true;
-        } else {
-            localStorage.removeItem('nullcam_ban');
-        }
-    }
-}
-checkBanStatus();
+let typingTimeout = null;
 
 // T&A Agreement Gate
 taAgreeCheckbox.addEventListener('change', (e) => {
@@ -65,55 +45,20 @@ function switchScreen(screen) {
     landingScreen.classList.add('hidden');
     searchingScreen.classList.add('hidden');
     chatScreen.classList.add('hidden');
-    adminScreen.classList.add('hidden');
     screen.classList.remove('hidden');
 }
 
-// Admin Backdoor Login
-adminLoginBtn.addEventListener('click', () => {
-    const pin = prompt("ENTER ADMIN CLEARANCE PIN:");
-    if (pin === "9999") { // Secure PIN example
-        isAdmin = true;
-        switchScreen(adminScreen);
-        mqttClient.subscribe(ADMIN_TOPIC);
-    } else {
-        alert("ACCESS REJECTED.");
-    }
-});
-
-exitAdminBtn.addEventListener('click', () => {
-    isAdmin = false;
-    switchScreen(landingScreen);
-});
-
-// Webcam & AI Blur Simulation
+// Webcam Setup
 async function startWebcam() {
     if (localStream) return true;
     try {
         localStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
         localVideo.srcObject = localStream;
-        
-        // AI Nudity Blur Simulation Hook (Monitors local feed)
-        startAiBlurGuard();
         return true;
     } catch (err) {
-        alert("Hardware access required.");
+        alert("Camera and Microphone access required.");
         return false;
     }
-}
-
-function startAiBlurGuard() {
-    // Conceptual AI Hook: In production, NSFW.js runs inference on localVideo frames here.
-    // If >25% NSFW probability is calculated, triggers local blur and alerts admins.
-    setInterval(() => {
-        // Random probabilistic test for demonstration purposes, or tie to actual AI model
-        const nsfwDetected = false; // Toggle true to test AI blur response
-        if (nsfwDetected) {
-            localVideo.classList.add('blurred-video');
-            aiBlurOverlay.classList.remove('hidden');
-            triggerAdminFlag("AI_AUTO_FLAG: Nudity probability > 25%");
-        }
-    }, 5000);
 }
 
 // PeerJS Setup
@@ -130,6 +75,7 @@ function initPeer() {
 
         peer.on('connection', (incomingConn) => {
             conn = incomingConn;
+            targetPeerId = conn.peer;
             setupDataHandlers();
         });
 
@@ -147,11 +93,6 @@ mqttClient.on('connect', () => mqttClient.subscribe(LOBBY_TOPIC));
 mqttClient.on('message', (topic, message) => {
     try {
         const data = JSON.parse(message.toString());
-        
-        if (isAdmin && topic === ADMIN_TOPIC && data.type === 'report') {
-            appendAdminFeed(data);
-        }
-
         if (isSearching && topic === LOBBY_TOPIC && data.status === 'waiting' && data.id !== myId) {
             isSearching = false;
             mqttClient.publish(LOBBY_TOPIC, JSON.stringify({ id: data.id, status: 'claimed' }));
@@ -164,6 +105,7 @@ async function joinQueue() {
     switchScreen(searchingScreen);
     chatMessages.innerHTML = '';
     chatBuffer = [];
+    targetPeerId = null;
     
     const hasMedia = await startWebcam();
     if (!hasMedia) { switchScreen(landingScreen); return; }
@@ -174,6 +116,7 @@ async function joinQueue() {
 }
 
 function connectToPeer(targetId) {
+    targetPeerId = targetId;
     conn = peer.connect(targetId, { reliable: true });
     setupDataHandlers();
     mediaCall = peer.call(targetId, localStream);
@@ -186,80 +129,75 @@ function setupDataHandlers() {
     nodeCounter.textContent = "STATUS: P2P LINKED";
 
     conn.on('data', (packet) => {
-        if (typeof packet === 'string') {
+        if (typeof packet === 'object' && packet.type === 'typing') {
+            if (packet.isTyping) typingIndicator.classList.remove('hidden');
+            else typingIndicator.classList.add('hidden');
+        } else if (typeof packet === 'string') {
+            typingIndicator.classList.add('hidden');
             chatBuffer.push(`Stranger: ${packet}`);
             appendMessage(`STRANGER: ${packet}`, 'msg-peer');
         }
     });
 
-    conn.on('close', () => { appendSystemMessage('>> STRANGER SEVERED CONNECTION.'); });
+    conn.on('close', () => { 
+        appendSystemMessage('>> STRANGER SEVERED CONNECTION.'); 
+        typingIndicator.classList.add('hidden');
+    });
 }
 
-// Reporting & Evidence Catcher
+// Typing Broadcast Handler
+messageInput.addEventListener('input', () => {
+    if (!conn || !conn.open) return;
+    conn.send({ type: 'typing', isTyping: true });
+    clearTimeout(typingTimeout);
+    typingTimeout = setTimeout(() => {
+        if (conn && conn.open) conn.send({ type: 'typing', isTyping: false });
+    }, 1000);
+});
+
+// Step 2: User Reporting & Evidence Catcher Triggers
 reportBtn.addEventListener('click', () => { reportModal.classList.remove('hidden'); });
 cancelReportBtn.addEventListener('click', () => { reportModal.classList.add('hidden'); });
 
 submitReportBtn.addEventListener('click', () => {
     reportModal.classList.add('hidden');
-    
-    // Capture canvas screenshot of remote video feed
+
+    // 1. Capture canvas snapshot of the current remote video feed
     const canvas = document.createElement('canvas');
     canvas.width = remoteVideo.videoWidth || 320;
     canvas.height = remoteVideo.videoHeight || 240;
     const ctx = canvas.getContext('2d');
-    ctx.drawImage(remoteVideo, 0, 0, canvas.width, canvas.height);
-    const snapshotUrl = canvas.toDataURL('image/jpeg', 0.5);
+    try {
+        ctx.drawImage(remoteVideo, 0, 0, canvas.width, canvas.height);
+    } catch (e) {
+        console.error("Canvas snapshot failed:", e);
+    }
+    const snapshotUrl = canvas.toDataURL('image/jpeg', 0.6);
 
-    const reportData = {
+    // 2. Package evidence bundle (Reason, chat log history, snapshot image, targets)
+    const reportEvidence = {
         type: 'report',
-        targetId: myId,
+        reporterId: myId,
+        reportedId: targetPeerId || 'UNKNOWN',
         reason: reportReason.value,
-        chatLog: chatBuffer.slice(-10), // Past 10 chat messages
+        chatLog: chatBuffer.slice(-10), // Past 10 messages context
         snapshot: snapshotUrl,
         timestamp: new Date().toISOString()
     };
 
-    // Broadcast report packet to admins via MQTT command channel
-    mqttClient.publish(ADMIN_TOPIC, JSON.stringify(reportData));
-    alert("REPORT LOGGED. Evidence sent to Admin Viewing Station. Re-matching...");
+    // 3. Broadcast to Admin MQTT Channel
+    mqttClient.publish(ADMIN_TOPIC, JSON.stringify(reportEvidence));
+
+    alert("VIOLATION REPORTED. Evidence bundle captured and transmitted to admin monitoring station.");
     handleSkip();
 });
-
-function triggerAdminFlag(reasonText) {
-    const reportData = {
-        type: 'report',
-        targetId: myId,
-        reason: reasonText,
-        chatLog: chatBuffer.slice(-5),
-        timestamp: new Date().toISOString()
-    };
-    mqttClient.publish(ADMIN_TOPIC, JSON.stringify(reportData));
-}
-
-function appendAdminFeed(report) {
-    const div = document.createElement('div');
-    div.className = 'system-msg';
-    div.innerHTML = `<strong>FLAG:</strong> [${report.reason}] ID: ${report.targetId}<br>
-        <button class="neon-btn danger" onclick="issueBan('${report.targetId}', 24, '${report.reason}')">BAN USER (24H)</button>`;
-    adminFeedList.prepend(div);
-}
-
-window.issueBan = function(targetId, hours, reason) {
-    localStorage.setItem('nullcam_ban', JSON.stringify({
-        hours: hours,
-        reason: reason,
-        expiresAt: new Date().getTime() + (hours * 3600 * 1000)
-    }));
-    alert(`User ${targetId} banned for ${hours} hours.`);
-}
 
 function cleanDisconnect() {
     isSearching = false;
     if (conn) { conn.close(); conn = null; }
     if (mediaCall) { mediaCall.close(); mediaCall = null; }
     remoteVideo.srcObject = null;
-    localVideo.classList.remove('blurred-video');
-    aiBlurOverlay.classList.add('hidden');
+    typingIndicator.classList.add('hidden');
 }
 
 function handleSkip() {
@@ -281,6 +219,7 @@ function sendMessage() {
     chatBuffer.push(`You: ${text}`);
     appendMessage(`YOU: ${text}`, 'msg-self');
     messageInput.value = '';
+    if (conn && conn.open) conn.send({ type: 'typing', isTyping: false });
 }
 
 function appendMessage(text, className) {

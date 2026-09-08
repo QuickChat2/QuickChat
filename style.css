@@ -50,14 +50,6 @@ h1 { font-family: 'VT323', monospace; font-size: 3.2rem; color: #fff; text-shado
     width: 100%; font-size: 0.85rem; color: var(--neon-yellow);
     background: rgba(243, 255, 0, 0.05); padding: 10px; border: 1px dashed var(--neon-yellow);
 }
-.terms-link { color: var(--neon-cyan); text-decoration: underline; cursor: pointer; }
-
-/* AI Blur Overlay */
-.ai-blur-banner {
-    position: absolute; bottom: 0; left: 0; width: 100%; background: rgba(255, 0, 234, 0.85);
-    color: #fff; font-size: 0.75rem; text-align: center; padding: 4px; z-index: 5; font-weight: bold;
-}
-.blurred-video { filter: blur(25px) contrast(200%) !important; }
 
 /* Video Layout */
 .video-grid { width: 100%; display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
@@ -93,7 +85,10 @@ video { width: 100%; height: 100%; object-fit: cover; }
 /* Modals */
 .modal { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.85); display: flex; justify-content: center; align-items: center; z-index: 1000; }
 .modal-content { background: #0b0514; border: 2px solid var(--neon-magenta); padding: 25px; width: 90%; max-width: 400px; display: flex; flex-direction: column; gap: 15px; }
-.neon-input { background: #000; border: 1px solid var(--neon-cyan); color: #fff; padding: 10px; font-family: 'Share Tech Mono', monospace; }
+.neon-input { background: #000; border: 1px solid var(--neon-cyan); color: #fff; padding: 10px; font-family: 'Share Tech Mono', monospace; width: 100%; }
 
-/* Admin Feed */
-.admin-feed-container { width: 100%; max-height: 300px; overflow-y: auto; background: #000; border: 1px solid var(--neon-yellow); padding: 10px; display: flex; flex-direction: column; gap: 10px; }
+/* Loader */
+.radar-loader { width: 50px; height: 50px; border: 3px solid rgba(0, 243, 255, 0.1); border-top: 3px solid var(--neon-cyan); border-radius: 50%; animation: spin 1s linear infinite; }
+@keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+.blink { animation: pulse 1.2s infinite; }
+@keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.3; } }

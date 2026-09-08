@@ -13,32 +13,31 @@
     <div class="container">
         <header>
             <h1 class="glitch" data-text="NULL_CAM">NULL_CAM</h1>
-            <p class="subtitle">// SECURE_NEON_RELAY_v3.0.0 // MODERATED</p>
+            <p class="subtitle">// SECURE_NEON_RELAY_v3.1.0 // REPORTING_ENGINE</p>
             <p class="node-status" id="node-counter">NODE STATUS: OFFLINE</p>
         </header>
 
-        <!-- Landing Screen with Mandatory T&A -->
+        <!-- Landing Screen with T&A Gate -->
         <div id="landing-screen" class="panel">
             <div class="terminal-text">
-                <p>> SYSTEM: ONLINE (AI SAFETY FILTER ACTIVE)</p>
-                <p>> WARNING: 18+ ID VERIFICATION REQUIRED.</p>
-                <p>> NOTICE: ALL STREAMS SUBJECT TO RECORDING BY USERS, TIKTOKERS, AND SITE MODERATORS.</p>
+                <p>> SYSTEM: ONLINE</p>
+                <p>> 18+ AGE VERIFICATION REQUIRED.</p>
+                <p>> NOTICE: STREAMS MAY BE RECORDED BY USERS, PARTICIPANTS, OR PUBLIC MEDIA. BY ENTERING, YOU ACCEPT ALL RISKS.</p>
             </div>
             
             <div class="legal-checkbox-container">
                 <label>
-                    <input type="checkbox" id="ta-agree"> I am 18+ and agree to the <span class="terms-link" id="open-terms">Terms & Recordings Policy</span>.
+                    <input type="checkbox" id="ta-agree"> I am 18+ and accept the Terms & Recording Disclaimers.
                 </label>
             </div>
 
             <button id="start-btn" class="neon-btn" disabled>INITIALIZE CONNECTION</button>
-            <button id="admin-login-btn" class="neon-btn warning" style="margin-top: 10px; font-size: 0.8rem;">ADMIN BACKDOOR</button>
         </div>
 
         <!-- Searching Screen -->
         <div id="searching-screen" class="panel hidden">
             <div class="radar-loader"></div>
-            <p class="blink">SCANNING MATRIX (AI SHIELD ENGAGED)...</p>
+            <p class="blink">SCANNING MATRIX FOR PEERS...</p>
             <button id="cancel-search-btn" class="neon-btn danger">ABORT</button>
         </div>
 
@@ -50,15 +49,13 @@
                     <video id="remote-video" autoplay playsinline></video>
                 </div>
                 <div class="video-wrapper local-wrapper">
-                    <span class="video-label">YOU (ANON) + AI SHIELD</span>
+                    <span class="video-label">YOU (ANON)</span>
                     <video id="local-video" autoplay playsinline muted></video>
-                    <!-- AI Blur Overlay Layer -->
-                    <div id="ai-blur-overlay" class="ai-blur-banner hidden">⚠️ AI BLUR ENGAGED (>25% NSFW DETECTED)</div>
                 </div>
             </div>
 
             <div id="chat-messages" class="chat-box">
-                <div class="system-msg">>> LINK ESTABLISHED. BE RESPECTFUL. AI MODERATION ACTIVE.</div>
+                <div class="system-msg">>> LINK ESTABLISHED. BE RESPECTFUL.</div>
             </div>
             
             <div id="typing-indicator" class="typing-indicator hidden">> STRANGER IS TRANSMITTING DATA...</div>
@@ -66,35 +63,25 @@
             <div class="chat-controls">
                 <input type="text" id="message-input" placeholder="Transmit data packet..." autocomplete="off">
                 <button id="send-btn" class="neon-btn">SEND</button>
-                <button id="report-btn" class="neon-btn danger" title="Report Stranger">REPORT</button>
+                <button id="report-btn" class="neon-btn danger" title="Report Violation">REPORT</button>
                 <button id="skip-btn" class="neon-btn warning">SKIP</button>
             </div>
         </div>
-
-        <!-- Admin Viewing Station Panel -->
-        <div id="admin-screen" class="panel hidden">
-            <h2>// ADMIN COMMAND STATION</h2>
-            <p class="subtitle">LIVE FLAGGED NODES & MODERATION FEED</p>
-            <div id="admin-feed-list" class="admin-feed-container">
-                <div class="system-msg">No active flags or reports in queue. Monitoring matrix...</div>
-            </div>
-            <button id="exit-admin-btn" class="neon-btn">EXIT ADMIN MODE</button>
-        </div>
     </div>
 
-    <!-- Report Modal Pop-up -->
+    <!-- Report Evidence Modal -->
     <div id="report-modal" class="modal hidden">
         <div class="modal-content">
-            <h3>REPORT EXTREMIST / T&A BREACH</h3>
-            <p>Snapshot and chat buffer captured. Select reason for admin review:</p>
+            <h3>REPORT USER VIOLATION</h3>
+            <p>Select reason for reporting (Chat buffer and video snapshot will be attached):</p>
             <select id="report-reason" class="neon-input">
-                <option value="nudity">Nudity / T&A Violation</option>
-                <option value="harassment">Harassment / Hate Speech</option>
-                <option value="prankster">TikTok / YouTube Prankster</option>
-                <option value="underage">Suspected Minor</option>
+                <option value="Nudity / T&A Breach">Nudity / Explicit T&A Breach</option>
+                <option value="Harassment / Abuse">Harassment / Hate Speech / Abuse</option>
+                <option value="Underage Suspected">Suspected Minor / Underage</option>
+                <option value="Spam / Bot">Spam / Bot / Commercial Activity</option>
             </select>
-            <div class="modal-buttons">
-                <button id="submit-report-btn" class="neon-btn danger">SUBMIT & BAN</button>
+            <div class="modal-buttons" style="display: flex; gap: 10px; margin-top: 10px;">
+                <button id="submit-report-btn" class="neon-btn danger">SUBMIT EVIDENCE</button>
                 <button id="cancel-report-btn" class="neon-btn">CANCEL</button>
             </div>
         </div>
