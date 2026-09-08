@@ -1,11 +1,12 @@
 const mqttClient = mqtt.connect('wss://broker.emqx.io:8084/mqtt');
-const LOBBY_TOPIC = 'nullcam_matrix_lobby_v3_2';
-const ADMIN_TOPIC = 'nullcam_admin_command_v3_2';
+const LOBBY_TOPIC = 'nullcam_matrix_lobby_v3_3';
+const ADMIN_TOPIC = 'nullcam_admin_command_v3_3';
 
 // DOM Elements
 const landingScreen = document.getElementById('landing-screen');
 const searchingScreen = document.getElementById('searching-screen');
 const chatScreen = document.getElementById('chat-screen');
+const adminScreen = document.getElementById('admin-screen');
 const reportModal = document.getElementById('report-modal');
 
 const startBtn = document.getElementById('start-btn');
@@ -19,6 +20,7 @@ const skipBtn = document.getElementById('skip-btn');
 const reportBtn = document.getElementById('report-btn');
 const submitReportBtn = document.getElementById('submit-report-btn');
 const cancelReportBtn = document.getElementById('cancel-report-btn');
+const exitAdminBtn = document.getElementById('exit-admin-btn');
 
 const messageInput = document.getElementById('message-input');
 const chatMessages = document.getElementById('chat-messages');
@@ -28,6 +30,7 @@ const localVideo = document.getElementById('local-video');
 const remoteVideo = document.getElementById('remote-video');
 const reportReason = document.getElementById('report-reason');
 const aiBlurOverlay = document.getElementById('ai-blur-overlay');
+const adminFeedList = document.getElementById('admin-feed-list');
 
 let localStream = null;
 let peer = null;
@@ -36,12 +39,29 @@ let mediaCall = null;
 let myId = null;
 let targetPeerId = null;
 let isSearching = false;
+let isAdmin = false;
 let chatBuffer = [];
 let typingTimeout = null;
 
 // AI Model State
 let nsfwModel = null;
 let aiInterval = null;
+
+// Check local storage for active bans on startup
+function checkBanStatus() {
+    const banData = localStorage.getItem('nullcam_ban');
+    if (banData) {
+        const ban = JSON.parse(banData);
+        if (new Date().getTime() < ban.expiresAt) {
+            alert(`ACCESS DENIED: You are banned from NullCam for ${ban.hours} hours.\nReason: ${ban.reason}`);
+            startBtn.disabled = true;
+            taAgreeCheckbox.disabled = true;
+        } else {
+            localStorage.removeItem('nullcam_ban');
+        }
+    }
+}
+checkBanStatus();
 
 // T&A Agreement Gate
 taAgreeCheckbox.addEventListener('change', (e) => {
@@ -52,8 +72,30 @@ function switchScreen(screen) {
     landingScreen.classList.add('hidden');
     searchingScreen.classList.add('hidden');
     chatScreen.classList.add('hidden');
+    adminScreen.classList.add('hidden');
     screen.classList.remove('hidden');
 }
+
+// Discreet Admin Access via Keyboard Shortcut: Ctrl + Shift + A (or Cmd + Shift + A)
+window.addEventListener('keydown', (e) => {
+    if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key.toLowerCase() === 'a') {
+        e.preventDefault();
+        const pin = prompt("ENTER ADMIN CLEARANCE PIN:");
+        if (pin === "9999") { // Configurable Admin PIN
+            isAdmin = true;
+            switchScreen(adminScreen);
+            mqttClient.subscribe(ADMIN_TOPIC);
+            alert("ADMIN CLEARANCE GRANTED: Connected to live matrix command station.");
+        } else {
+            alert("INVALID SECURITY CREDENTIALS.");
+        }
+    }
+});
+
+exitAdminBtn.addEventListener('click', () => {
+    isAdmin = false;
+    switchScreen(landingScreen);
+});
 
 // Load NSFW.js AI Model on Startup
 async function loadAiModel() {
@@ -83,7 +125,7 @@ async function startWebcam() {
     }
 }
 
-// Step 3: Client-Side AI Nudity Scanner & Auto-Flag Loop
+// Client-Side AI Nudity Scanner & Auto-Flag Loop
 function startAiScanner() {
     if (aiInterval) clearInterval(aiInterval);
 
@@ -92,8 +134,6 @@ function startAiScanner() {
 
         try {
             const predictions = await nsfwModel.classify(localVideo, 3);
-            
-            // Analyze predictions for explicit triggers (> 25% confidence in Porn, Hentai, or Sexy)
             const violation = predictions.find(p => 
                 (p.className === 'Porn' || p.className === 'Hentai' || p.className === 'Sexy') && p.probability > 0.25
             );
@@ -101,10 +141,8 @@ function startAiScanner() {
             if (violation) {
                 const triggerReason = `AI_AUTO_FLAG: Detected [${violation.className}] at ${(violation.probability * 100).toFixed(1)}% confidence.`;
                 
-                // 1. Always trigger admin silent flag with specific reason data
                 triggerAdminAutoFlag(triggerReason, predictions);
 
-                // 2. Apply local blur ONLY if user toggle is enabled
                 if (aiBlurToggle.checked) {
                     localVideo.classList.add('blurred-video');
                     aiBlurOverlay.classList.remove('hidden');
@@ -113,18 +151,16 @@ function startAiScanner() {
                     aiBlurOverlay.classList.add('hidden');
                 }
             } else {
-                // Clear warning states if frame is safe
                 localVideo.classList.remove('blurred-video');
                 aiBlurOverlay.classList.add('hidden');
             }
         } catch (err) {
             console.error("AI Frame Analysis Error:", err);
         }
-    }, 4000); // Scan every 4 seconds to preserve client CPU/battery
+    }, 4000);
 }
 
 function triggerAdminAutoFlag(reasonText, predictions) {
-    // Capture snapshot of local feed for AI evidence
     const canvas = document.createElement('canvas');
     canvas.width = localVideo.videoWidth || 320;
     canvas.height = localVideo.videoHeight || 240;
@@ -174,12 +210,32 @@ function initPeer() {
     });
 }
 
-// Matchmaking
-mqttClient.on('connect', () => mqttClient.subscribe(LOBBY_TOPIC));
+// Matchmaking & Admin Feed Listener
+mqttClient.on('connect', () => {
+    mqttClient.subscribe(LOBBY_TOPIC);
+    mqttClient.subscribe(ADMIN_TOPIC);
+});
 
 mqttClient.on('message', (topic, message) => {
     try {
         const data = JSON.parse(message.toString());
+        
+        // Handle incoming reports on admin station
+        if (isAdmin && topic === ADMIN_TOPIC && data.type === 'report') {
+            appendAdminFeedCard(data);
+        }
+
+        // Handle incoming ban commands broadcasted across the network
+        if (topic === ADMIN_TOPIC && data.type === 'ban_command' && data.targetId === myId) {
+            localStorage.setItem('nullcam_ban', JSON.stringify({
+                hours: data.hours,
+                reason: data.reason,
+                expiresAt: new Date().getTime() + (data.hours * 3600 * 1000)
+            }));
+            alert(`SECURITY NOTICE: You have been banned from NullCam for ${data.hours} hours.\nReason: ${data.reason}`);
+            window.location.reload();
+        }
+
         if (isSearching && topic === LOBBY_TOPIC && data.status === 'waiting' && data.id !== myId) {
             isSearching = false;
             mqttClient.publish(LOBBY_TOPIC, JSON.stringify({ id: data.id, status: 'claimed' }));
@@ -215,7 +271,6 @@ function setupDataHandlers() {
     switchScreen(chatScreen);
     nodeCounter.textContent = "STATUS: P2P LINKED";
     
-    // Start AI Background Scanner on active session
     startAiScanner();
 
     conn.on('data', (packet) => {
@@ -275,6 +330,46 @@ submitReportBtn.addEventListener('click', () => {
     alert("VIOLATION REPORTED. Evidence bundle captured and transmitted to admin monitoring station.");
     handleSkip();
 });
+
+// Admin Dashboard Feed Card Renderer
+function appendAdminFeedCard(report) {
+    if (adminFeedList.querySelector('.system-msg')) {
+        adminFeedList.innerHTML = '';
+    }
+
+    const card = document.createElement('div');
+    card.className = 'admin-card';
+    
+    let chatLogHtml = report.chatLog ? report.chatLog.join('<br>') : 'No chat history';
+    
+    card.innerHTML = `
+        <div><strong>TIME:</strong> ${new Date(report.timestamp).toLocaleTimeString()}</div>
+        <div><strong>TARGET ID:</strong> ${report.reportedId}</div>
+        <div><strong>REASON:</strong> <span style="color:var(--neon-yellow);">${report.reason}</span></div>
+        <div><strong>RECENT CHAT:</strong><br><div style="background:#111; padding:4px; font-size:0.75rem; color:#a5f3fc;">${chatLogHtml}</div></div>
+        <div><strong>EVIDENCE SNAPSHOT:</strong><br><img src="${report.snapshot}" alt="Evidence Frame"></div>
+        <button class="neon-btn danger" onclick="issueBanCommand('${report.reportedId}')" style="margin-top: 5px;">BAN USER</button>
+    `;
+    adminFeedList.prepend(card);
+}
+
+window.issueBanCommand = function(targetId) {
+    const hoursInput = prompt("Enter ban duration in hours (e.g., 24):", "24");
+    const hours = parseInt(hoursInput);
+    if (!hours || isNaN(hours)) return;
+
+    const reasonInput = prompt("Enter ban reason:", "Terms & Conditions / T&A Violation");
+
+    const banCommand = {
+        type: 'ban_command',
+        targetId: targetId,
+        hours: hours,
+        reason: reasonInput || "Violation of platform rules"
+    };
+
+    mqttClient.publish(ADMIN_TOPIC, JSON.stringify(banCommand));
+    alert(`Ban command issued for user ${targetId} (${hours} hours).`);
+}
 
 function cleanDisconnect() {
     isSearching = false;

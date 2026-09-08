@@ -13,7 +13,7 @@
     <div class="container">
         <header>
             <h1 class="glitch" data-text="NULL_CAM">NULL_CAM</h1>
-            <p class="subtitle">// SECURE_NEON_RELAY_v3.2.0 // AI_SHIELD_ENGINE</p>
+            <p class="subtitle">// SECURE_NEON_RELAY_v3.3.0 // FULLY MODERATED</p>
             <p class="node-status" id="node-counter">NODE STATUS: OFFLINE</p>
         </header>
 
@@ -75,6 +75,16 @@
                 <button id="report-btn" class="neon-btn danger" title="Report Violation">REPORT</button>
                 <button id="skip-btn" class="neon-btn warning">SKIP</button>
             </div>
+        </div>
+
+        <!-- Admin Viewing Station Panel (Discreet Access) -->
+        <div id="admin-screen" class="panel hidden">
+            <h2>// ADMIN COMMAND STATION</h2>
+            <p class="subtitle">LIVE FLAGGED NODES & MODERATION QUEUE</p>
+            <div id="admin-feed-list" class="admin-feed-container">
+                <div class="system-msg">No active flags or reports in queue. Monitoring matrix...</div>
+            </div>
+            <button id="exit-admin-btn" class="neon-btn" style="margin-top: 10px;">EXIT ADMIN MODE</button>
         </div>
     </div>
 
