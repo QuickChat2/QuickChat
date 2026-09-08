@@ -13,7 +13,7 @@
     <div class="container">
         <header>
             <h1 class="glitch" data-text="QUICK_CHAT">QUICK_CHAT</h1>
-            <p class="subtitle">// SECURE_NEON_RELAY_v2.0.0 // NO_LOGS</p>
+            <p class="subtitle">// SECURE_NEON_RELAY_v2.1.0 // POLISHED</p>
             <p class="node-status" id="node-counter">NODE STATUS: OFFLINE</p>
         </header>
 
@@ -22,7 +22,6 @@
                 <p>> SYSTEM: ONLINE</p>
                 <p>> ENCRYPTION: QUANTUM_CYAN</p>
                 <p>> MEDIA ACCESS: CAMERA / MIC REQ</p>
-                <p>> BROKER: PUBLIC_MQTT_GHOST_NODE</p>
                 <p>> STATUS: READY FOR LINKAGE</p>
             </div>
             <button id="start-btn" class="neon-btn">INITIALIZE CONNECTION</button>
@@ -35,6 +34,7 @@
         </div>
 
         <div id="chat-screen" class="panel hidden">
+            <!-- P2P Video Feeds -->
             <div class="video-grid">
                 <div class="video-wrapper remote-wrapper">
                     <span class="video-label">STRANGER_NODE</span>
@@ -46,13 +46,13 @@
                 </div>
             </div>
 
+            <!-- Text Overlay Terminal Chat -->
             <div id="chat-messages" class="chat-box">
                 <div class="system-msg">>> LINK ESTABLISHED WITH UNKNOWN NODE.</div>
             </div>
             
-            <!-- Typing Indicator Added Here -->
-            <div id="typing-indicator" class="typing-text hidden">> STRANGER IS TYPING...</div>
-            
+            <div id="typing-indicator" class="typing-indicator hidden">> STRANGER IS TRANSMITTING DATA...</div>
+
             <div class="chat-controls">
                 <input type="text" id="message-input" placeholder="Transmit data packet..." autocomplete="off">
                 <button id="send-btn" class="neon-btn">SEND</button>
@@ -61,8 +61,12 @@
         </div>
     </div>
 
+    <!-- PeerJS WebRTC Engine -->
     <script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"></script>
+    
+    <!-- MQTT.js Matchmaking Broker -->
     <script src="https://unpkg.com/mqtt/dist/mqtt.min.js"></script>
+
     <script src="./script.js"></script>
 </body>
 </html>
