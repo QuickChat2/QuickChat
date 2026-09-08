@@ -1,6 +1,6 @@
 const mqttClient = mqtt.connect('wss://broker.emqx.io:8084/mqtt');
-const LOBBY_TOPIC = 'nullcam_matrix_lobby_v3_5';
-const ADMIN_TOPIC = 'nullcam_admin_command_v3_5';
+const LOBBY_TOPIC = 'nullcam_matrix_lobby_v3_6';
+const ADMIN_TOPIC = 'nullcam_admin_command_v3_6';
 
 // DOM Elements
 const landingScreen = document.getElementById('landing-screen');
@@ -48,8 +48,21 @@ let isAdmin = false;
 let chatBuffer = [];
 let typingTimeout = null;
 
-// Registry holding ban evidence files for the admin session
-let activeBansRegistry = {};
+// Persistent Bans Registry via localStorage for Admin station
+function getActiveBansRegistry() {
+    try {
+        const stored = localStorage.getItem('nullcam_admin_bans_registry');
+        return stored ? JSON.parse(stored) : {};
+    } catch (e) {
+        return {};
+    }
+}
+
+function saveActiveBansRegistry(registry) {
+    try {
+        localStorage.setItem('nullcam_admin_bans_registry', JSON.stringify(registry));
+    } catch (e) {}
+}
 
 // AI Model State
 let nsfwModel = null;
@@ -91,6 +104,7 @@ function triggerAdminPrompt() {
         isAdmin = true;
         switchScreen(adminScreen);
         mqttClient.subscribe(ADMIN_TOPIC);
+        renderAdminBansList(); // Render registry immediately upon entering admin mode
         alert("ADMIN CLEARANCE GRANTED: Connected to live matrix command station.");
     } else {
         alert("INVALID SECURITY CREDENTIALS.");
@@ -253,15 +267,19 @@ mqttClient.on('message', (topic, message) => {
         }
 
         // Track ban records in registry if sent on admin topic
-        if (isAdmin && topic === ADMIN_TOPIC && data.type === 'ban_command') {
-            activeBansRegistry[data.targetId] = data;
-            renderAdminBansList();
+        if (topic === ADMIN_TOPIC && data.type === 'ban_command') {
+            const registry = getActiveBansRegistry();
+            registry[data.targetId] = data;
+            saveActiveBansRegistry(registry);
+            if (isAdmin) renderAdminBansList();
         }
 
         // Remove from registry if unbanned
-        if (isAdmin && topic === ADMIN_TOPIC && data.type === 'unban_command') {
-            delete activeBansRegistry[data.targetId];
-            renderAdminBansList();
+        if (topic === ADMIN_TOPIC && data.type === 'unban_command') {
+            const registry = getActiveBansRegistry();
+            delete registry[data.targetId];
+            saveActiveBansRegistry(registry);
+            if (isAdmin) renderAdminBansList();
         }
 
         // Handle incoming ban commands broadcasted across the network
@@ -389,8 +407,6 @@ function appendAdminFeedCard(report) {
     card.className = 'admin-card';
     
     let chatLogHtml = report.chatLog ? report.chatLog.join('<br>') : 'No chat history';
-    
-    // Store in a temporary lookup so ban card can access snapshot/chatlog
     card.dataset.reportPayload = JSON.stringify(report);
 
     card.innerHTML = `
@@ -425,12 +441,21 @@ window.issueBanCommand = function(btnEl) {
     };
 
     mqttClient.publish(ADMIN_TOPIC, JSON.stringify(banCommand));
+    
+    // Immediately register locally as well
+    const registry = getActiveBansRegistry();
+    registry[banCommand.targetId] = banCommand;
+    saveActiveBansRegistry(registry);
+    renderAdminBansList();
+
     alert(`Ban command issued for user ${report.reportedId} (${hours} hours). Added to Active Bans Registry.`);
 };
 
-// Render Banned Users Registry List
+// Render Banned Users Registry List from localStorage
 function renderAdminBansList() {
-    const keys = Object.keys(activeBansRegistry);
+    const registry = getActiveBansRegistry();
+    const keys = Object.keys(registry);
+    
     if (keys.length === 0) {
         adminBansList.innerHTML = '<div class="system-msg">No active user bans recorded.</div>';
         return;
@@ -438,7 +463,7 @@ function renderAdminBansList() {
 
     adminBansList.innerHTML = '';
     keys.forEach((targetId) => {
-        const ban = activeBansRegistry[targetId];
+        const ban = registry[targetId];
         const item = document.createElement('div');
         item.className = 'admin-card';
         item.style.borderColor = 'var(--neon-pink)';
@@ -456,7 +481,8 @@ function renderAdminBansList() {
 
 // Review Ban File Modal
 window.reviewBanFile = function(targetId) {
-    const ban = activeBansRegistry[targetId];
+    const registry = getActiveBansRegistry();
+    const ban = registry[targetId];
     if (!ban) return;
 
     let chatHtml = ban.chatLog && ban.chatLog.length > 0 ? ban.chatLog.join('<br>') : 'No chat data logged.';
@@ -486,8 +512,12 @@ window.executeUnban = function(targetId) {
     };
 
     mqttClient.publish(ADMIN_TOPIC, JSON.stringify(unbanCommand));
-    delete activeBansRegistry[targetId];
+    
+    const registry = getActiveBansRegistry();
+    delete registry[targetId];
+    saveActiveBansRegistry(registry);
     renderAdminBansList();
+
     alert(`Unban command broadcasted successfully for node: ${targetId}`);
 };
 
