@@ -13,6 +13,7 @@ const startBtn = document.getElementById('start-btn');
 const taAgreeCheckbox = document.getElementById('ta-agree');
 const aiBlurToggle = document.getElementById('ai-blur-toggle');
 const aiStatusText = document.getElementById('ai-status-text');
+const adminTriggerEl = document.getElementById('admin-trigger');
 
 const cancelSearchBtn = document.getElementById('cancel-search-btn');
 const sendBtn = document.getElementById('send-btn');
@@ -76,19 +77,38 @@ function switchScreen(screen) {
     screen.classList.remove('hidden');
 }
 
-// Discreet Admin Access via Keyboard Shortcut: Ctrl + Shift + A (or Cmd + Shift + A)
+// Admin Trigger Logic (Keyboard shortcut + Mobile Triple-Tap)
+function triggerAdminPrompt() {
+    const pin = prompt("ENTER ADMIN CLEARANCE PIN:");
+    if (pin === "9999") { // Configurable Admin PIN
+        isAdmin = true;
+        switchScreen(adminScreen);
+        mqttClient.subscribe(ADMIN_TOPIC);
+        alert("ADMIN CLEARANCE GRANTED: Connected to live matrix command station.");
+    } else {
+        alert("INVALID SECURITY CREDENTIALS.");
+    }
+}
+
+// Desktop Keyboard Shortcut: Ctrl + Shift + A (or Cmd + Shift + A)
 window.addEventListener('keydown', (e) => {
     if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key.toLowerCase() === 'a') {
         e.preventDefault();
-        const pin = prompt("ENTER ADMIN CLEARANCE PIN:");
-        if (pin === "9999") { // Configurable Admin PIN
-            isAdmin = true;
-            switchScreen(adminScreen);
-            mqttClient.subscribe(ADMIN_TOPIC);
-            alert("ADMIN CLEARANCE GRANTED: Connected to live matrix command station.");
-        } else {
-            alert("INVALID SECURITY CREDENTIALS.");
-        }
+        triggerAdminPrompt();
+    }
+});
+
+// Mobile / Screen-Keyboard Discreet Trigger: Triple-tap subtitle text
+let adminTapCount = 0;
+let adminTapTimer = null;
+adminTriggerEl.addEventListener('click', () => {
+    adminTapCount++;
+    clearTimeout(adminTapTimer);
+    if (adminTapCount >= 3) {
+        adminTapCount = 0;
+        triggerAdminPrompt();
+    } else {
+        adminTapTimer = setTimeout(() => { adminTapCount = 0; }, 1000);
     }
 });
 
