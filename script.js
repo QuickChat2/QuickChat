@@ -1,6 +1,6 @@
 const mqttClient = mqtt.connect('wss://broker.emqx.io:8084/mqtt');
-const LOBBY_TOPIC = 'nullcam_matrix_lobby_v3_6';
-const ADMIN_TOPIC = 'nullcam_admin_command_v3_6';
+const LOBBY_TOPIC = 'nullcam_matrix_lobby_v3_7';
+const ADMIN_TOPIC = 'nullcam_admin_command_v3_7';
 
 // DOM Elements
 const landingScreen = document.getElementById('landing-screen');
@@ -24,6 +24,7 @@ const submitReportBtn = document.getElementById('submit-report-btn');
 const cancelReportBtn = document.getElementById('cancel-report-btn');
 const exitAdminBtn = document.getElementById('exit-admin-btn');
 const closeReviewBtn = document.getElementById('close-review-btn');
+const wipeBansBtn = document.getElementById('wipe-bans-btn');
 
 const messageInput = document.getElementById('message-input');
 const chatMessages = document.getElementById('chat-messages');
@@ -104,7 +105,7 @@ function triggerAdminPrompt() {
         isAdmin = true;
         switchScreen(adminScreen);
         mqttClient.subscribe(ADMIN_TOPIC);
-        renderAdminBansList(); // Render registry immediately upon entering admin mode
+        renderAdminBansList();
         alert("ADMIN CLEARANCE GRANTED: Connected to live matrix command station.");
     } else {
         alert("INVALID SECURITY CREDENTIALS.");
@@ -442,7 +443,6 @@ window.issueBanCommand = function(btnEl) {
 
     mqttClient.publish(ADMIN_TOPIC, JSON.stringify(banCommand));
     
-    // Immediately register locally as well
     const registry = getActiveBansRegistry();
     registry[banCommand.targetId] = banCommand;
     saveActiveBansRegistry(registry);
@@ -520,6 +520,16 @@ window.executeUnban = function(targetId) {
 
     alert(`Unban command broadcasted successfully for node: ${targetId}`);
 };
+
+// Wipe All Bans Button Handler (Touch-friendly reset)
+wipeBansBtn.addEventListener('click', () => {
+    if (confirm("Are you sure you want to clear all local ban restrictions and wipe the admin ban registry?")) {
+        localStorage.removeItem('nullcam_ban');
+        localStorage.removeItem('nullcam_admin_bans_registry');
+        alert("All local bans and registries wiped. Reloading system...");
+        window.location.reload();
+    }
+});
 
 function cleanDisconnect() {
     isSearching = false;

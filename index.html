@@ -13,7 +13,7 @@
     <div class="container">
         <header>
             <h1 class="glitch" data-text="NULL_CAM">NULL_CAM</h1>
-            <p class="subtitle" id="admin-trigger" title="Secret Portal">// SECURE_NEON_RELAY_v3.6.0 // FULLY MODERATED</p>
+            <p class="subtitle" id="admin-trigger" title="Secret Portal">// SECURE_NEON_RELAY_v3.7.0 // FULLY MODERATED</p>
             <p class="node-status" id="node-counter">NODE STATUS: OFFLINE</p>
         </header>
 
@@ -85,8 +85,11 @@
                 <div class="system-msg">No active flags or reports in queue. Monitoring matrix...</div>
             </div>
 
-            <h3 style="margin-top: 15px; color: var(--neon-yellow);">// ACTIVE BANNED NODES REGISTRY</h3>
-            <div id="admin-bans-list" class="admin-feed-container" style="max-height: 180px;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 15px;">
+                <h3 style="color: var(--neon-yellow); margin: 0;">// ACTIVE BANNED NODES REGISTRY</h3>
+                <button id="wipe-bans-btn" class="neon-btn danger" style="font-size: 0.7rem; padding: 4px 8px;">WIPE ALL BANS</button>
+            </div>
+            <div id="admin-bans-list" class="admin-feed-container" style="max-height: 180px; margin-top: 5px;">
                 <div class="system-msg">No active user bans recorded.</div>
             </div>
 
