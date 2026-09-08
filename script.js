@@ -16,8 +16,6 @@ const nodeCounter = document.getElementById('node-counter');
 let peer = null;
 let conn = null;
 let myId = null;
-let isSearching = false;
-let searchTimer = null;
 
 // Helper: Switch active UI screens
 function switchScreen(screen) {
@@ -27,7 +25,7 @@ function switchScreen(screen) {
     screen.classList.remove('hidden');
 }
 
-// Initialize PeerJS Node with a clean public broker
+// Initialize PeerJS Node
 function initPeer(onReady) {
     if (peer && !peer.destroyed) {
         if (onReady) onReady();
@@ -47,14 +45,14 @@ function initPeer(onReady) {
 
     peer.on('open', (id) => {
         myId = id;
-        nodeCounter.textContent = `NODE STATUS: ONLINE (ID ACTIVE)`;
+        nodeCounter.textContent = `NODE STATUS: ONLINE (ID: ${id.slice(0, 6)}...)`;
         console.log('My node ID is: ' + id);
         if (onReady) onReady();
     });
 
     peer.on('connection', (incomingConn) => {
         if (conn && conn.open) {
-            incomingConn.close(); // Busy with someone else
+            incomingConn.close();
             return;
         }
         conn = incomingConn;
@@ -68,59 +66,46 @@ function initPeer(onReady) {
     });
 }
 
-// Smart Matchmaking
+// Start Matchmaking / Mode Selection for Single-Device Testing
 function startMatchmaking() {
-    isSearching = true;
     switchScreen(searchingScreen);
     chatMessages.innerHTML = '';
     
     initPeer(() => {
-        nodeCounter.textContent = "NODE STATUS: SCANNING MATRIX...";
-        appendSystemMessage('>> BROADCASTING TO QUICKCHAT MATRIX...');
+        nodeCounter.textContent = "NODE STATUS: READY FOR LINK";
         
-        const timeBlock = Math.floor(Date.now() / 10000); 
-        let partnerAttempt = 0;
-        
-        function tryNextTarget() {
-            if (!isSearching) return;
-            
-            partnerAttempt++;
-            const targetId = `qc-pool-${timeBlock}-${partnerAttempt}`;
-            
-            if (targetId === myId) {
-                tryNextTarget();
-                return;
+        // For single-device Safari/Chrome testing, let's prompt for target ID or host
+        setTimeout(() => {
+            let targetPeerId = prompt(`Your Node ID is: ${myId}\n\nEnter the Peer ID of the other browser window to connect:`);
+            if (targetPeerId && targetPeerId.trim() !== "") {
+                connectToPeer(targetPeerId.trim());
+            } else {
+                appendSystemMessage('>> WAITING FOR INCOMING CONNECTION...');
             }
+        }, 500);
+    });
+}
 
-            let tempConn = peer.connect(targetId, { reliable: true });
-            
-            tempConn.on('open', () => {
-                conn = tempConn;
-                setupConnection();
-            });
+function connectToPeer(targetId) {
+    nodeCounter.textContent = "NODE STATUS: ESTABLISHING LINK...";
+    appendSystemMessage(`>> CONNECTING TO NODE: ${targetId}...`);
+    
+    let tempConn = peer.connect(targetId, { reliable: true });
+    
+    tempConn.on('open', () => {
+        conn = tempConn;
+        setupConnection();
+    });
 
-            tempConn.on('error', () => {
-                if (isSearching) {
-                    setTimeout(tryNextTarget, 600);
-                }
-            });
-        }
-
-        tryNextTarget();
-
-        searchTimer = setTimeout(() => {
-            if (isSearching) {
-                nodeCounter.textContent = "NODE STATUS: LISTENING FOR PEERS...";
-                appendSystemMessage('>> MATRIX CONGESTED. WAITING FOR INCOMING NODE LINK...');
-            }
-        }, 8000);
+    tempConn.on('error', (err) => {
+        console.error('Connection fail:', err);
+        appendSystemMessage('>> CONNECTION FAILED. CHECK ID AND RETRY.');
+        nodeCounter.textContent = "NODE STATUS: LINK FAILED";
     });
 }
 
 // When a secure P2P data link is locked in
 function setupConnection() {
-    isSearching = false;
-    clearTimeout(searchTimer);
     nodeCounter.textContent = "NODE STATUS: SECURE P2P LINKED";
     switchScreen(chatScreen);
     appendSystemMessage('>> SECURE P2P LINK ESTABLISHED WITH PEER NODE.');
@@ -132,7 +117,6 @@ function setupConnection() {
     conn.on('close', () => {
         nodeCounter.textContent = "NODE STATUS: PEER DISCONNECTED";
         appendSystemMessage('>> PEER TERMINATED THE CONNECTION.');
-        setTimeout(handleSkip, 1500);
     });
 }
 
@@ -152,7 +136,11 @@ function handleSkip() {
         conn.close();
         conn = null;
     }
-    startMatchmaking();
+    switchScreen(landingScreen);
+    if (peer) {
+        peer.destroy();
+        peer = null;
+    }
 }
 
 // UI Event Listeners
@@ -161,18 +149,14 @@ startBtn.addEventListener('click', () => {
 });
 
 cancelSearchBtn.addEventListener('click', () => {
-    isSearching = false;
-    clearTimeout(searchTimer);
-    nodeCounter.textContent = peer ? "NODE STATUS: ONLINE (ID ACTIVE)" : "NODE STATUS: OFFLINE";
+    switchScreen(landingScreen);
     if (peer) {
         peer.destroy();
         peer = null;
     }
-    switchScreen(landingScreen);
 });
 
 skipBtn.addEventListener('click', handleSkip);
-
 sendBtn.addEventListener('click', sendMessage);
 messageInput.addEventListener('keypress', (e) => {
     if (e.key === 'Enter') sendMessage();
