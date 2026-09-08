@@ -35,7 +35,6 @@
         </div>
 
         <div id="chat-screen" class="panel hidden">
-            <!-- P2P Video Feeds -->
             <div class="video-grid">
                 <div class="video-wrapper remote-wrapper">
                     <span class="video-label">STRANGER_NODE</span>
@@ -47,10 +46,12 @@
                 </div>
             </div>
 
-            <!-- Text Overlay Terminal Chat -->
             <div id="chat-messages" class="chat-box">
                 <div class="system-msg">>> LINK ESTABLISHED WITH UNKNOWN NODE.</div>
             </div>
+            
+            <!-- Typing Indicator Added Here -->
+            <div id="typing-indicator" class="typing-text hidden">> STRANGER IS TYPING...</div>
             
             <div class="chat-controls">
                 <input type="text" id="message-input" placeholder="Transmit data packet..." autocomplete="off">
@@ -60,12 +61,8 @@
         </div>
     </div>
 
-    <!-- PeerJS WebRTC Engine (For actual Video/Audio/Text) -->
     <script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"></script>
-    
-    <!-- MQTT.js (Zero-account Public Matchmaking Broker) -->
     <script src="https://unpkg.com/mqtt/dist/mqtt.min.js"></script>
-
     <script src="./script.js"></script>
 </body>
 </html>
