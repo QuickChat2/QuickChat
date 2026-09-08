@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>QuickChat // Retro-Net Node</title>
     <link href="https://fonts.googleapis.com/css2?family=VT323&family=Share+Tech+Mono&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="./style.css">
@@ -21,6 +21,7 @@
             <div class="terminal-text">
                 <p>> SYSTEM: ONLINE</p>
                 <p>> ENCRYPTION: QUANTUM_CYAN</p>
+                <p>> MEDIA ACCESS: CAMERA / MIC REQ</p>
                 <p>> STATUS: READY FOR LINKAGE</p>
             </div>
             <button id="start-btn" class="neon-btn">INITIALIZE CONNECTION</button>
@@ -28,11 +29,24 @@
 
         <div id="searching-screen" class="panel hidden">
             <div class="radar-loader"></div>
-            <p class="blink">SEARCHING MATRIX FOR PEER...</p>
+            <p class="blink">SCANNING MATRIX FOR PEERS...</p>
             <button id="cancel-search-btn" class="neon-btn danger">ABORT</button>
         </div>
 
         <div id="chat-screen" class="panel hidden">
+            <!-- Video Feeds Section -->
+            <div class="video-grid">
+                <div class="video-wrapper">
+                    <span class="video-label">PEER_NODE</span>
+                    <video id="remote-video" autoplay playsinline></video>
+                </div>
+                <div class="video-wrapper">
+                    <span class="video-label">YOU</span>
+                    <video id="local-video" autoplay playsinline muted></video>
+                </div>
+            </div>
+
+            <!-- Text Overlay Chat -->
             <div id="chat-messages" class="chat-box">
                 <div class="system-msg">>> LINK ESTABLISHED WITH UNKNOWN NODE.</div>
             </div>
@@ -45,8 +59,13 @@
         </div>
     </div>
 
-    <!-- PeerJS Library for P2P WebRTC Connections -->
+    <!-- PeerJS Library -->
     <script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"></script>
+    
+    <!-- Firebase Realtime Database SDK for Queue Broker -->
+    <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-database-compat.js"></script>
+
     <script src="./script.js"></script>
 </body>
 </html>
