@@ -1,6 +1,6 @@
 const mqttClient = mqtt.connect('wss://broker.emqx.io:8084/mqtt');
-const LOBBY_TOPIC = 'nullcam_matrix_lobby_v3_3';
-const ADMIN_TOPIC = 'nullcam_admin_command_v3_3';
+const LOBBY_TOPIC = 'nullcam_matrix_lobby_v3_4';
+const ADMIN_TOPIC = 'nullcam_admin_command_v3_4';
 
 // DOM Elements
 const landingScreen = document.getElementById('landing-screen');
@@ -22,6 +22,7 @@ const reportBtn = document.getElementById('report-btn');
 const submitReportBtn = document.getElementById('submit-report-btn');
 const cancelReportBtn = document.getElementById('cancel-report-btn');
 const exitAdminBtn = document.getElementById('exit-admin-btn');
+const unbanBtn = document.getElementById('unban-btn');
 
 const messageInput = document.getElementById('message-input');
 const chatMessages = document.getElementById('chat-messages');
@@ -256,6 +257,13 @@ mqttClient.on('message', (topic, message) => {
             window.location.reload();
         }
 
+        // Handle incoming unban commands broadcasted across the network
+        if (topic === ADMIN_TOPIC && data.type === 'unban_command' && data.targetId === myId) {
+            localStorage.removeItem('nullcam_ban');
+            alert("SECURITY NOTICE: Your ban has been lifted by admin authority. Access restored.");
+            window.location.reload();
+        }
+
         if (isSearching && topic === LOBBY_TOPIC && data.status === 'waiting' && data.id !== myId) {
             isSearching = false;
             mqttClient.publish(LOBBY_TOPIC, JSON.stringify({ id: data.id, status: 'claimed' }));
@@ -346,7 +354,7 @@ submitReportBtn.addEventListener('click', () => {
         timestamp: new Date().toISOString()
     };
 
-    mqttClient.publish(ADMIN_TOPIC, JSON.stringify(reportEvidence));
+mqttClient.publish(ADMIN_TOPIC, JSON.stringify(reportEvidence));
     alert("VIOLATION REPORTED. Evidence bundle captured and transmitted to admin monitoring station.");
     handleSkip();
 });
@@ -390,6 +398,20 @@ window.issueBanCommand = function(targetId) {
     mqttClient.publish(ADMIN_TOPIC, JSON.stringify(banCommand));
     alert(`Ban command issued for user ${targetId} (${hours} hours).`);
 }
+
+// Admin Unban Button Handler
+unbanBtn.addEventListener('click', () => {
+    const targetId = prompt("Enter the exact Peer ID of the user to unban:");
+    if (!targetId || !targetId.trim()) return;
+
+    const unbanCommand = {
+        type: 'unban_command',
+        targetId: targetId.trim()
+    };
+
+    mqttClient.publish(ADMIN_TOPIC, JSON.stringify(unbanCommand));
+    alert(`Unban command broadcasted for user ID: ${targetId.trim()}`);
+});
 
 function cleanDisconnect() {
     isSearching = false;
