@@ -1,6 +1,6 @@
 const mqttClient = mqtt.connect('wss://broker.emqx.io:8084/mqtt');
-const LOBBY_TOPIC = 'nullcam_matrix_lobby_v3_1';
-const ADMIN_TOPIC = 'nullcam_admin_command_v3_1';
+const LOBBY_TOPIC = 'nullcam_matrix_lobby_v3_2';
+const ADMIN_TOPIC = 'nullcam_admin_command_v3_2';
 
 // DOM Elements
 const landingScreen = document.getElementById('landing-screen');
@@ -10,6 +10,8 @@ const reportModal = document.getElementById('report-modal');
 
 const startBtn = document.getElementById('start-btn');
 const taAgreeCheckbox = document.getElementById('ta-agree');
+const aiBlurToggle = document.getElementById('ai-blur-toggle');
+const aiStatusText = document.getElementById('ai-status-text');
 
 const cancelSearchBtn = document.getElementById('cancel-search-btn');
 const sendBtn = document.getElementById('send-btn');
@@ -25,6 +27,7 @@ const typingIndicator = document.getElementById('typing-indicator');
 const localVideo = document.getElementById('local-video');
 const remoteVideo = document.getElementById('remote-video');
 const reportReason = document.getElementById('report-reason');
+const aiBlurOverlay = document.getElementById('ai-blur-overlay');
 
 let localStream = null;
 let peer = null;
@@ -35,6 +38,10 @@ let targetPeerId = null;
 let isSearching = false;
 let chatBuffer = [];
 let typingTimeout = null;
+
+// AI Model State
+let nsfwModel = null;
+let aiInterval = null;
 
 // T&A Agreement Gate
 taAgreeCheckbox.addEventListener('change', (e) => {
@@ -48,6 +55,21 @@ function switchScreen(screen) {
     screen.classList.remove('hidden');
 }
 
+// Load NSFW.js AI Model on Startup
+async function loadAiModel() {
+    if (nsfwModel) return;
+    try {
+        aiStatusText.textContent = "AI: LOADING MODEL...";
+        tf.setBackend('webgl').catch(() => tf.setBackend('cpu'));
+        nsfwModel = await nsfwjs.load();
+        aiStatusText.textContent = "AI: ACTIVE & SHIELDING";
+    } catch (err) {
+        console.error("AI Model Load Error:", err);
+        aiStatusText.textContent = "AI: OFFLINE (FALLBACK)";
+    }
+}
+loadAiModel();
+
 // Webcam Setup
 async function startWebcam() {
     if (localStream) return true;
@@ -59,6 +81,71 @@ async function startWebcam() {
         alert("Camera and Microphone access required.");
         return false;
     }
+}
+
+// Step 3: Client-Side AI Nudity Scanner & Auto-Flag Loop
+function startAiScanner() {
+    if (aiInterval) clearInterval(aiInterval);
+
+    aiInterval = setInterval(async () => {
+        if (!nsfwModel || !localVideo || localVideo.paused || localVideo.ended) return;
+
+        try {
+            const predictions = await nsfwModel.classify(localVideo, 3);
+            
+            // Analyze predictions for explicit triggers (> 25% confidence in Porn, Hentai, or Sexy)
+            const violation = predictions.find(p => 
+                (p.className === 'Porn' || p.className === 'Hentai' || p.className === 'Sexy') && p.probability > 0.25
+            );
+
+            if (violation) {
+                const triggerReason = `AI_AUTO_FLAG: Detected [${violation.className}] at ${(violation.probability * 100).toFixed(1)}% confidence.`;
+                
+                // 1. Always trigger admin silent flag with specific reason data
+                triggerAdminAutoFlag(triggerReason, predictions);
+
+                // 2. Apply local blur ONLY if user toggle is enabled
+                if (aiBlurToggle.checked) {
+                    localVideo.classList.add('blurred-video');
+                    aiBlurOverlay.classList.remove('hidden');
+                } else {
+                    localVideo.classList.remove('blurred-video');
+                    aiBlurOverlay.classList.add('hidden');
+                }
+            } else {
+                // Clear warning states if frame is safe
+                localVideo.classList.remove('blurred-video');
+                aiBlurOverlay.classList.add('hidden');
+            }
+        } catch (err) {
+            console.error("AI Frame Analysis Error:", err);
+        }
+    }, 4000); // Scan every 4 seconds to preserve client CPU/battery
+}
+
+function triggerAdminAutoFlag(reasonText, predictions) {
+    // Capture snapshot of local feed for AI evidence
+    const canvas = document.createElement('canvas');
+    canvas.width = localVideo.videoWidth || 320;
+    canvas.height = localVideo.videoHeight || 240;
+    const ctx = canvas.getContext('2d');
+    try {
+        ctx.drawImage(localVideo, 0, 0, canvas.width, canvas.height);
+    } catch (e) {}
+    const snapshotUrl = canvas.toDataURL('image/jpeg', 0.5);
+
+    const autoFlagData = {
+        type: 'report',
+        reporterId: 'SYSTEM_AI_SHIELD',
+        reportedId: myId,
+        reason: reasonText,
+        predictions: predictions,
+        chatLog: chatBuffer.slice(-5),
+        snapshot: snapshotUrl,
+        timestamp: new Date().toISOString()
+    };
+
+    mqttClient.publish(ADMIN_TOPIC, JSON.stringify(autoFlagData));
 }
 
 // PeerJS Setup
@@ -127,6 +214,9 @@ function setupDataHandlers() {
     isSearching = false;
     switchScreen(chatScreen);
     nodeCounter.textContent = "STATUS: P2P LINKED";
+    
+    // Start AI Background Scanner on active session
+    startAiScanner();
 
     conn.on('data', (packet) => {
         if (typeof packet === 'object' && packet.type === 'typing') {
@@ -155,48 +245,45 @@ messageInput.addEventListener('input', () => {
     }, 1000);
 });
 
-// Step 2: User Reporting & Evidence Catcher Triggers
+// User Reporting & Evidence Catcher Triggers
 reportBtn.addEventListener('click', () => { reportModal.classList.remove('hidden'); });
 cancelReportBtn.addEventListener('click', () => { reportModal.classList.add('hidden'); });
 
 submitReportBtn.addEventListener('click', () => {
     reportModal.classList.add('hidden');
 
-    // 1. Capture canvas snapshot of the current remote video feed
     const canvas = document.createElement('canvas');
     canvas.width = remoteVideo.videoWidth || 320;
     canvas.height = remoteVideo.videoHeight || 240;
     const ctx = canvas.getContext('2d');
     try {
         ctx.drawImage(remoteVideo, 0, 0, canvas.width, canvas.height);
-    } catch (e) {
-        console.error("Canvas snapshot failed:", e);
-    }
+    } catch (e) {}
     const snapshotUrl = canvas.toDataURL('image/jpeg', 0.6);
 
-    // 2. Package evidence bundle (Reason, chat log history, snapshot image, targets)
     const reportEvidence = {
         type: 'report',
         reporterId: myId,
         reportedId: targetPeerId || 'UNKNOWN',
         reason: reportReason.value,
-        chatLog: chatBuffer.slice(-10), // Past 10 messages context
+        chatLog: chatBuffer.slice(-10),
         snapshot: snapshotUrl,
         timestamp: new Date().toISOString()
     };
 
-    // 3. Broadcast to Admin MQTT Channel
     mqttClient.publish(ADMIN_TOPIC, JSON.stringify(reportEvidence));
-
     alert("VIOLATION REPORTED. Evidence bundle captured and transmitted to admin monitoring station.");
     handleSkip();
 });
 
 function cleanDisconnect() {
     isSearching = false;
+    if (aiInterval) { clearInterval(aiInterval); aiInterval = null; }
     if (conn) { conn.close(); conn = null; }
     if (mediaCall) { mediaCall.close(); mediaCall = null; }
     remoteVideo.srcObject = null;
+    localVideo.classList.remove('blurred-video');
+    aiBlurOverlay.classList.add('hidden');
     typingIndicator.classList.add('hidden');
 }
 

@@ -13,16 +13,16 @@
     <div class="container">
         <header>
             <h1 class="glitch" data-text="NULL_CAM">NULL_CAM</h1>
-            <p class="subtitle">// SECURE_NEON_RELAY_v3.1.0 // REPORTING_ENGINE</p>
+            <p class="subtitle">// SECURE_NEON_RELAY_v3.2.0 // AI_SHIELD_ENGINE</p>
             <p class="node-status" id="node-counter">NODE STATUS: OFFLINE</p>
         </header>
 
         <!-- Landing Screen with T&A Gate -->
         <div id="landing-screen" class="panel">
             <div class="terminal-text">
-                <p>> SYSTEM: ONLINE</p>
+                <p>> SYSTEM: ONLINE (CLIENT-SIDE AI GUARD ACTIVE)</p>
                 <p>> 18+ AGE VERIFICATION REQUIRED.</p>
-                <p>> NOTICE: STREAMS MAY BE RECORDED BY USERS, PARTICIPANTS, OR PUBLIC MEDIA. BY ENTERING, YOU ACCEPT ALL RISKS.</p>
+                <p>> NOTICE: STREAMS MAY BE RECORDED BY USERS, PARTICIPANTS, OR MODERATORS.</p>
             </div>
             
             <div class="legal-checkbox-container">
@@ -37,7 +37,7 @@
         <!-- Searching Screen -->
         <div id="searching-screen" class="panel hidden">
             <div class="radar-loader"></div>
-            <p class="blink">SCANNING MATRIX FOR PEERS...</p>
+            <p class="blink">LOADING AI MODEL & SCANNING MATRIX...</p>
             <button id="cancel-search-btn" class="neon-btn danger">ABORT</button>
         </div>
 
@@ -51,11 +51,20 @@
                 <div class="video-wrapper local-wrapper">
                     <span class="video-label">YOU (ANON)</span>
                     <video id="local-video" autoplay playsinline muted></video>
+                    <div id="ai-blur-overlay" class="ai-blur-banner hidden">⚠️ AI SHIELD: EXPLICIT CONTENT BLURRED</div>
                 </div>
             </div>
 
+            <!-- AI Blur Toggle Control Bar -->
+            <div class="ai-toggle-bar">
+                <label class="toggle-label">
+                    <input type="checkbox" id="ai-blur-toggle" checked> ENABLE LOCAL AI BLUR SHIELD (>25% NSFW)
+                </label>
+                <span id="ai-status-text" class="ai-status-indicator">AI: INITIALIZING...</span>
+            </div>
+
             <div id="chat-messages" class="chat-box">
-                <div class="system-msg">>> LINK ESTABLISHED. BE RESPECTFUL.</div>
+                <div class="system-msg">>> LINK ESTABLISHED. AI SAFETY MONITOR ENGAGED.</div>
             </div>
             
             <div id="typing-indicator" class="typing-indicator hidden">> STRANGER IS TRANSMITTING DATA...</div>
@@ -87,7 +96,9 @@
         </div>
     </div>
 
-    <!-- PeerJS & MQTT Engines -->
+    <!-- TensorFlow.js, NSFW.js, PeerJS & MQTT Engines -->
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.17.0/dist/tf.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/nsfwjs@2.4.2/dist/nsfwjs.min.js"></script>
     <script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"></script>
     <script src="https://unpkg.com/mqtt/dist/mqtt.min.js"></script>
     <script src="./script.js"></script>
